@@ -51,14 +51,16 @@ function TemplateForm({ template, onSubmit }) {
       questions: [{
         type: 'string',
         title: '',
-        required: false,
+        state: 'optional',
         is_visible_in_results: true,
         options: [],
         select_type: null,
         min: 1,
         max: 5,
         minLabel: '',
-        maxLabel: ''
+        maxLabel: '',
+        attachment: null,
+        attachment_url: null,
       }],
     },
   });
@@ -129,7 +131,7 @@ function TemplateForm({ template, onSubmit }) {
                 type: q.select_type || q.type,
                 select_type: ['multiple_choice', 'dropdown'].includes(q.type) ? q.type : null,
                 description: q.description || '',
-                required: q.state === 'required',
+                state: q.state || 'optional',
                 is_visible_in_results: q.is_visible_in_results,
                 order: q.order || index + 1,
                 options: q.options || [],
@@ -137,6 +139,8 @@ function TemplateForm({ template, onSubmit }) {
                 max: q.max || 5,
                 minLabel: q.minLabel || '',
                 maxLabel: q.maxLabel || '',
+                attachment: null,
+                attachment_url: q.attachment_url || null,
               })) || [],
             });
             if (templateRes.data.template.image_url) {
@@ -204,6 +208,26 @@ function TemplateForm({ template, onSubmit }) {
     }
   }, [selectedImage, template, setValue, t, imagePreview]);
 
+  // Handle question attachment validation
+  useEffect(() => {
+    questions.forEach((q, index) => {
+      if (q.attachment && q.attachment[0]) {
+        const file = q.attachment[0];
+        const maxSize = 10 * 1024 * 1024; // 10MB
+        if (file.size > maxSize) {
+          setSubmitError(t('templateForm.attachmentTooLarge'));
+          setValue(`questions.${index}.attachment`, null);
+          return;
+        }
+        if (!['image/jpeg', 'image/png', 'application/pdf', 'video/mp4', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'].includes(file.type)) {
+          setSubmitError(t('templateForm.invalidAttachment'));
+          setValue(`questions.${index}.attachment`, null);
+          return;
+        }
+      }
+    });
+  }, [questions, setValue, t]);
+
   // Add new question
   const addQuestion = () => {
     const newQuestions = [
@@ -214,7 +238,7 @@ function TemplateForm({ template, onSubmit }) {
         type: 'string',
         select_type: null,
         description: '',
-        required: false,
+        state: 'optional',
         is_visible_in_results: true,
         order: questions.length + 1,
         options: [],
@@ -222,6 +246,8 @@ function TemplateForm({ template, onSubmit }) {
         max: 5,
         minLabel: '',
         maxLabel: '',
+        attachment: null,
+        attachment_url: null,
       },
     ];
     setValue('questions', newQuestions);
@@ -265,7 +291,7 @@ function TemplateForm({ template, onSubmit }) {
         formData.append(`questions[${i}][title]`, q.title);
         formData.append(`questions[${i}][type]`, q.select_type || q.type);
         formData.append(`questions[${i}][description]`, q.description || '');
-        formData.append(`questions[${i}][required]`, q.required.toString());
+        formData.append(`questions[${i}][state]`, q.state || 'optional');
         formData.append(`questions[${i}][is_visible_in_results]`, q.is_visible_in_results.toString());
         formData.append(`questions[${i}][order]`, q.order);
         if (q.options?.length) {
@@ -276,6 +302,9 @@ function TemplateForm({ template, onSubmit }) {
           formData.append(`questions[${i}][max]`, q.max);
           formData.append(`questions[${i}][minLabel]`, q.minLabel || '');
           formData.append(`questions[${i}][maxLabel]`, q.maxLabel || '');
+        }
+        if (q.attachment && q.attachment[0]) {
+          formData.append(`questionAttachments[${i}]`, q.attachment[0]);
         }
       });
 
@@ -707,14 +736,47 @@ function TemplateForm({ template, onSubmit }) {
                           </>
                         )}
 
-                        <Form.Group className="mb-2" controlId={`question-${index}-required`}>
-                          <Form.Check
-                            type="checkbox"
-                            label={t('templateForm.isRequired')}
-                            {...register(`questions.${index}.required`)}
-                            aria-label={t('templateForm.isRequired')}
-                            id={`question-${index}-required-checkbox`}
+                        <Form.Group className="mb-2" controlId={`question-${index}-attachment`}>
+                          <Form.Label>{t('templateForm.attachment')}</Form.Label>
+                          <Form.Control
+                            type="file"
+                            accept="image/jpeg,image/png,application/pdf,video/mp4,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                            {...register(`questions.${index}.attachment`)}
+                            aria-label={t('templateForm.attachment')}
+                            className={theme === 'dark' ? 'bg-dark text-light border-light' : ''}
+                            id={`question-${index}-attachment-input`}
                           />
+                          {q.attachment && q.attachment[0] && (
+                            <Form.Text className={theme === 'dark' ? 'text-light' : ''}>
+                              {t('templateForm.attachmentSelected', { name: q.attachment[0].name })}
+                            </Form.Text>
+                          )}
+                          {q.attachment_url && (
+                            <div className="mt-2">
+                              <a
+                                href={q.attachment_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                aria-label={t('templateForm.viewAttachment')}
+                                id={`question-${index}-attachment-link`}
+                              >
+                                {t('templateForm.viewAttachment')}
+                              </a>
+                            </div>
+                          )}
+                        </Form.Group>
+
+                        <Form.Group className="mb-2" controlId={`question-${index}-state`}>
+                          <Form.Label>{t('templateForm.state')}</Form.Label>
+                          <Form.Select
+                            {...register(`questions.${index}.state`)}
+                            aria-label={t('templateForm.state')}
+                            className={theme === 'dark' ? 'bg-dark text-light border-light' : ''}
+                            id={`question-${index}-state-select`}
+                          >
+                            <option value="required">{t('templateForm.required')}</option>
+                            <option value="optional">{t('templateForm.optional')}</option>
+                          </Form.Select>
                         </Form.Group>
 
                         <Form.Group className="mb-2" controlId={`question-${index}-is_visible_in_results`}>
@@ -823,7 +885,7 @@ function TemplateForm({ template, onSubmit }) {
               type: q.select_type || q.type,
               select_type: ['multiple_choice', 'dropdown'].includes(q.type) ? q.type : null,
               description: q.description || '',
-              required: q.state === 'required',
+              state: q.state || 'optional',
               is_visible_in_results: q.is_visible_in_results,
               order: q.order || index + 1,
               options: q.options || [],
@@ -831,6 +893,8 @@ function TemplateForm({ template, onSubmit }) {
               max: q.max || 5,
               minLabel: q.minLabel || '',
               maxLabel: q.maxLabel || '',
+              attachment: null,
+              attachment_url: q.attachment_url || null,
             })) || [],
           });
           if (templateRes.data.template.image_url) {
