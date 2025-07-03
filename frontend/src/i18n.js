@@ -245,6 +245,12 @@ const resources = {
         submittedDetails: 'Submission Details',
         user: 'User: {user}',
         date: 'Date: {date}',
+        // Added for attachment support
+        attachment: 'Attachment',
+        attachmentSelected: 'Selected: {name}',
+        invalidAttachment: 'Invalid attachment type. Use JPEG, PNG, PDF, MP4, DOC, or DOCX.',
+        attachmentTooLarge: 'Attachment size must be less than 10MB.',
+        viewAttachment: 'View Attachment',
       },
       comments: {
         title: 'Comments',
@@ -314,6 +320,15 @@ const resources = {
         success: 'Template saved successfully',
         error: 'Failed to save template',
         retry: 'Retry',
+        // Added for attachment and question state support
+        attachment: 'Question Attachment',
+        attachmentSelected: 'Selected: {name}',
+        invalidAttachment: 'Invalid attachment type. Use JPEG, PNG, PDF, MP4, DOC, or DOCX.',
+        attachmentTooLarge: 'Attachment size must be less than 10MB.',
+        viewAttachment: 'View Attachment',
+        state: 'Question State',
+        required: 'Required',
+        optional: 'Optional',
       },
       auth: {
         loginSuccess: 'Logged in successfully',
@@ -336,6 +351,8 @@ const resources = {
         themeChanged: 'Theme changed to {theme}',
         retry: 'Retry',
         loading: 'Loading theme...',
+        // Added for consistency
+        dismiss: 'Dismiss',
       },
       header: {
         appName: 'Forms App',
@@ -366,9 +383,16 @@ const resources = {
         login: 'Log In',
         register_label: 'Register',
         register: 'Register',
+        // Added for create template button
+        createTemplate: 'Create Template',
       },
       app: {
         loading: 'Loading application...',
+        // Added for consistency with App.js
+        error: 'Something went wrong',
+        errorMessage: 'An unexpected error occurred. Please try again later.',
+        loadingAuth: 'Loading authentication...',
+        loadingPage: 'Loading page...',
       },
     },
   },
@@ -615,6 +639,12 @@ const resources = {
         submittedDetails: 'Detalles de Envío',
         user: 'Usuario: {user}',
         date: 'Fecha: {date}',
+        // Added for attachment support
+        attachment: 'Adjunto',
+        attachmentSelected: 'Seleccionado: {name}',
+        invalidAttachment: 'Tipo de adjunto no válido. Usa JPEG, PNG, PDF, MP4, DOC o DOCX.',
+        attachmentTooLarge: 'El tamaño del adjunto debe ser menor a 10MB.',
+        viewAttachment: 'Ver Adjunto',
       },
       comments: {
         title: 'Comentarios',
@@ -684,6 +714,15 @@ const resources = {
         success: 'Plantilla guardada correctamente',
         error: 'Error al guardar la plantilla',
         retry: 'Reintentar',
+        // Added for attachment and question state support
+        attachment: 'Adjunto de Pregunta',
+        attachmentSelected: 'Seleccionado: {name}',
+        invalidAttachment: 'Tipo de adjunto no válido. Usa JPEG, PNG, PDF, MP4, DOC o DOCX.',
+        attachmentTooLarge: 'El tamaño del adjunto debe ser menor a 10MB.',
+        viewAttachment: 'Ver Adjunto',
+        state: 'Estado de la Pregunta',
+        required: 'Obligatorio',
+        optional: 'Opcional',
       },
       auth: {
         loginSuccess: 'Inicio de sesión exitoso',
@@ -706,6 +745,8 @@ const resources = {
         themeChanged: 'Tema cambiado a {theme}',
         retry: 'Reintentar',
         loading: 'Cargando tema...',
+        // Added for consistency
+        dismiss: 'Descartar',
       },
       header: {
         appName: 'Aplicación de Formularios',
@@ -736,9 +777,16 @@ const resources = {
         login: 'Iniciar Sesión',
         register_label: 'Registrarse',
         register: 'Registrarse',
+        // Added for create template button
+        createTemplate: 'Crear Plantilla',
       },
       app: {
         loading: 'Cargando la aplicación...',
+        // Added for consistency with App.js
+        error: 'Algo salió mal',
+        errorMessage: 'Ocurrió un error inesperado. Por favor, intenta de nuevo más tarde.',
+        loadingAuth: 'Cargando autenticación...',
+        loadingPage: 'Cargando página...',
       },
     },
   },
@@ -754,6 +802,9 @@ function initializeI18n() {
         fallbackLng: 'en',
         interpolation: {
           escapeValue: false,
+        },
+        react: {
+          useSuspense: false, // Added for compatibility with lazy-loaded components
         },
       })
       .then(() => {
