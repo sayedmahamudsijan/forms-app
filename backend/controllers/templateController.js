@@ -25,6 +25,7 @@ const validateCreateTemplate = [
     .withMessage('Each question must have a valid type (string, text, integer, checkbox, select) and title')
     .custom(questions => questions.every(q => q.type !== 'select' || (Array.isArray(q.options) && q.options.length > 0)))
     .withMessage('Select questions must have a non-empty array of options'),
+  body('questions.*.attachment').optional().isObject().withMessage('Question attachment must be an object'),
   body('tags').isArray().withMessage('Tags must be an array'),
   body('permissions').isArray().withMessage('Permissions must be an array'),
 ];
@@ -42,6 +43,7 @@ const validateUpdateTemplate = [
     .withMessage('Each question must have a valid type (string, text, integer, checkbox, select) and title')
     .custom(questions => questions.every(q => q.type !== 'select' || (Array.isArray(q.options) && q.options.length > 0)))
     .withMessage('Select questions must have a non-empty array of options'),
+  body('questions.*.attachment').optional().isObject().withMessage('Question attachment must be an object'),
   body('tags').isArray().withMessage('Tags must be an array'),
   body('permissions').isArray().withMessage('Permissions must be an array'),
 ];
@@ -57,6 +59,7 @@ const createTemplate = [
     if (!errors.isEmpty()) {
       console.log(`❌ CreateTemplate validation failed: ${JSON.stringify(errors.array())}`, {
         timestamp: new Date().toISOString(),
+        body: req.body, // Log request body for debugging
       });
       return res.status(400).json({ success: false, errors: errors.array() });
     }
@@ -105,6 +108,41 @@ const createTemplate = [
         image_url = uploadResult.url;
       }
 
+      // Handle question-level attachments
+      const questionAttachments = req.files?.questionAttachments || [];
+      const attachmentUrls = [];
+      const allowedAttachmentTypes = [
+        'image/jpeg', 'image/png', 'application/pdf', 'video/mp4', 'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      ];
+
+      for (let i = 0; i < questionAttachments.length; i++) {
+        const attachment = questionAttachments[i];
+        if (!allowedAttachmentTypes.includes(attachment.mimetype)) {
+          console.log(`❌ CreateTemplate failed: Invalid attachment type for question ${i}, user ${user_id}`, {
+            timestamp: new Date().toISOString(),
+          });
+          await transaction.rollback();
+          return res.status(400).json({ success: false, message: 'Invalid attachment type. Use JPEG, PNG, PDF, MP4, or DOC.' });
+        }
+        if (attachment.size > 10 * 1024 * 1024) {
+          console.log(`❌ CreateTemplate failed: Attachment size too large for question ${i}, user ${user_id}`, {
+            timestamp: new Date().toISOString(),
+          });
+          await transaction.rollback();
+          return res.status(400).json({ success: false, message: 'Attachment size must be less than 10MB.' });
+        }
+        const uploadResult = await uploadImage(attachment); // Assuming uploadImage supports non-image files
+        if (!uploadResult.success) {
+          console.log(`❌ CreateTemplate failed: Attachment upload failed for question ${i}, user ${user_id}`, {
+            timestamp: new Date().toISOString(),
+          });
+          await transaction.rollback();
+          return res.status(400).json({ success: false, message: uploadResult.message });
+        }
+        attachmentUrls[i] = uploadResult.url;
+      }
+
       const template = await Template.create({
         user_id,
         title,
@@ -125,6 +163,7 @@ const createTemplate = [
           order: index,
           state: q.state ?? 'optional',
           options: q.type === 'select' ? q.options : null,
+          attachment_url: attachmentUrls[index] || null, // Store attachment URL
         })),
         { transaction }
       );
@@ -156,7 +195,7 @@ const createTemplate = [
           { model: User, as: 'User', attributes: ['id', 'name'], required: false },
           { model: TemplateTag, as: 'TemplateTags', include: [{ model: Tag, as: 'Tag', attributes: ['id', 'name'] }], required: false },
           { model: TemplatePermission, as: 'TemplatePermissions', required: false },
-          { model: TemplateQuestion, as: 'TemplateQuestions', attributes: ['id', 'type', 'title', 'description', 'is_visible_in_results', 'order', 'state', 'options'] },
+          { model: TemplateQuestion, as: 'TemplateQuestions', attributes: ['id', 'type', 'title', 'description', 'is_visible_in_results', 'order', 'state', 'options', 'attachment_url'] },
           { model: Topic, as: 'Topic', attributes: ['id', 'name'], required: false },
         ],
         transaction
@@ -174,6 +213,7 @@ const createTemplate = [
         topic_id: req.body.topic_id,
         error: error.message,
         stack: error.stack,
+        body: req.body, // Log request body for debugging
         timestamp: new Date().toISOString(),
       });
       return res.status(500).json({ success: false, message: 'Server error', error: error.message });
@@ -330,6 +370,41 @@ const updateTemplate = [
         image_url = uploadResult.url;
       }
 
+      // Handle question-level attachments
+      const questionAttachments = req.files?.questionAttachments || [];
+      const attachmentUrls = [];
+      const allowedAttachmentTypes = [
+        'image/jpeg', 'image/png', 'application/pdf', 'video/mp4', 'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      ];
+
+      for (let i = 0; i < questionAttachments.length; i++) {
+        const attachment = questionAttachments[i];
+        if (!allowedAttachmentTypes.includes(attachment.mimetype)) {
+          console.log(`❌ UpdateTemplate failed: Invalid attachment type for question ${i}, user ${user_id}`, {
+            timestamp: new Date().toISOString(),
+          });
+          await transaction.rollback();
+          return res.status(400).json({ success: false, message: 'Invalid attachment type. Use JPEG, PNG, PDF, MP4, or DOC.' });
+        }
+        if (attachment.size > 10 * 1024 * 1024) {
+          console.log(`❌ UpdateTemplate failed: Attachment size too large for question ${i}, user ${user_id}`, {
+            timestamp: new Date().toISOString(),
+          });
+          await transaction.rollback();
+          return res.status(400).json({ success: false, message: 'Attachment size must be less than 10MB.' });
+        }
+        const uploadResult = await uploadImage(attachment); // Assuming uploadImage supports non-image files
+        if (!uploadResult.success) {
+          console.log(`❌ UpdateTemplate failed: Attachment upload failed for question ${i}, user ${user_id}`, {
+            timestamp: new Date().toISOString(),
+          });
+          await transaction.rollback();
+          return res.status(400).json({ success: false, message: uploadResult.message });
+        }
+        attachmentUrls[i] = uploadResult.url;
+      }
+
       await Template.update(
         {
           title,
@@ -354,6 +429,7 @@ const updateTemplate = [
           order: index,
           state: q.state ?? 'optional',
           options: q.type === 'select' ? q.options : null,
+          attachment_url: attachmentUrls[index] || null, // Store attachment URL
         })),
         { transaction }
       );
@@ -383,7 +459,7 @@ const updateTemplate = [
           { model: User, as: 'User', attributes: ['id', 'name'], required: false },
           { model: TemplateTag, as: 'TemplateTags', include: [{ model: Tag, as: 'Tag', attributes: ['id', 'name'] }], required: false },
           { model: TemplatePermission, as: 'TemplatePermissions', required: false },
-          { model: TemplateQuestion, as: 'TemplateQuestions', attributes: ['id', 'type', 'title', 'description', 'is_visible_in_results', 'order', 'state', 'options'] },
+          { model: TemplateQuestion, as: 'TemplateQuestions', attributes: ['id', 'type', 'title', 'description', 'is_visible_in_results', 'order', 'state', 'options', 'attachment_url'] },
           { model: Topic, as: 'Topic', attributes: ['id', 'name'], required: false },
         ],
         transaction
@@ -401,6 +477,7 @@ const updateTemplate = [
         user_id: req.user.id,
         error: error.message,
         stack: error.stack,
+        body: req.body, // Log request body for debugging
         timestamp: new Date().toISOString(),
       });
       return res.status(500).json({ success: false, message: 'Server error', error: error.message });
@@ -521,7 +598,7 @@ const getTemplate = [
           { model: User, as: 'User', attributes: ['id', 'name'], required: false },
           { model: TemplateTag, as: 'TemplateTags', include: [{ model: Tag, as: 'Tag', attributes: ['id', 'name'] }], required: false },
           { model: TemplatePermission, as: 'TemplatePermissions', required: false },
-          { model: TemplateQuestion, as: 'TemplateQuestions', attributes: ['id', 'type', 'title', 'description', 'is_visible_in_results', 'order', 'state', 'options'] },
+          { model: TemplateQuestion, as: 'TemplateQuestions', attributes: ['id', 'type', 'title', 'description', 'is_visible_in_results', 'order', 'state', 'options', 'attachment_url'] },
           { model: Topic, as: 'Topic', attributes: ['id', 'name'], required: false },
         ],
       });
@@ -613,7 +690,7 @@ const getResults = [
               { 
                 model: TemplateQuestion, 
                 as: 'TemplateQuestion', 
-                attributes: ['id', 'title', 'is_visible_in_results'], 
+                attributes: ['id', 'title', 'is_visible_in_results', 'attachment_url'], 
                 where: { is_visible_in_results: true },
                 required: false 
               }
