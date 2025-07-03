@@ -11,7 +11,7 @@ const {
   Form,
   FormAnswer,
 } = require('../models');
-const { uploadImage } = require('../services/cloudinaryService');
+const { uploadFile } = require('../services/cloudinaryService');
 
 const validateCreateTemplate = [
   body('title').trim().notEmpty().withMessage('Title is required'),
@@ -21,11 +21,12 @@ const validateCreateTemplate = [
   body('questions')
     .isArray({ min: 1 })
     .withMessage('Questions must be a non-empty array')
-    .custom(questions => questions.every(q => q.type && q.title && ['string', 'text', 'integer', 'checkbox', 'select'].includes(q.type)))
+    .custom(questions =>
+      questions.every(q => q.type && q.title && ['string', 'text', 'integer', 'checkbox', 'select'].includes(q.type))
+    )
     .withMessage('Each question must have a valid type (string, text, integer, checkbox, select) and title')
     .custom(questions => questions.every(q => q.type !== 'select' || (Array.isArray(q.options) && q.options.length > 0)))
     .withMessage('Select questions must have a non-empty array of options'),
-  body('questions.*.attachment').optional().isObject().withMessage('Question attachment must be an object'),
   body('tags').isArray().withMessage('Tags must be an array'),
   body('permissions').isArray().withMessage('Permissions must be an array'),
 ];
@@ -39,11 +40,12 @@ const validateUpdateTemplate = [
   body('questions')
     .isArray({ min: 1 })
     .withMessage('Questions must be a non-empty array')
-    .custom(questions => questions.every(q => q.type && q.title && ['string', 'text', 'integer', 'checkbox', 'select'].includes(q.type)))
+    .custom(questions =>
+      questions.every(q => q.type && q.title && ['string', 'text', 'integer', 'checkbox', 'select'].includes(q.type))
+    )
     .withMessage('Each question must have a valid type (string, text, integer, checkbox, select) and title')
     .custom(questions => questions.every(q => q.type !== 'select' || (Array.isArray(q.options) && q.options.length > 0)))
     .withMessage('Select questions must have a non-empty array of options'),
-  body('questions.*.attachment').optional().isObject().withMessage('Question attachment must be an object'),
   body('tags').isArray().withMessage('Tags must be an array'),
   body('permissions').isArray().withMessage('Permissions must be an array'),
 ];
@@ -59,7 +61,7 @@ const createTemplate = [
     if (!errors.isEmpty()) {
       console.log(`❌ CreateTemplate validation failed: ${JSON.stringify(errors.array())}`, {
         timestamp: new Date().toISOString(),
-        body: req.body, // Log request body for debugging
+        body: req.body,
       });
       return res.status(400).json({ success: false, errors: errors.array() });
     }
@@ -68,7 +70,7 @@ const createTemplate = [
     try {
       const { title, description, topic_id, is_public, questions, tags, permissions } = req.body;
       const user_id = req.user.id;
-      const image = req.files?.image;
+      const image = req.files?.image?.[0]; // From upload.fields
       let image_url;
 
       const topic = await Topic.findByPk(topic_id, { transaction });
@@ -97,7 +99,7 @@ const createTemplate = [
           return res.status(400).json({ success: false, message: 'Image size must be less than 5MB.' });
         }
 
-        const uploadResult = await uploadImage(image);
+        const uploadResult = await uploadFile(image, user_id);
         if (!uploadResult.success) {
           console.log(`❌ CreateTemplate failed: Image upload failed for user ${user_id}`, {
             timestamp: new Date().toISOString(),
@@ -123,7 +125,7 @@ const createTemplate = [
             timestamp: new Date().toISOString(),
           });
           await transaction.rollback();
-          return res.status(400).json({ success: false, message: 'Invalid attachment type. Use JPEG, PNG, PDF, MP4, or DOC.' });
+          return res.status(400).json({ success: false, message: 'Invalid attachment type. Use JPEG, PNG, PDF, MP4, DOC, or DOCX.' });
         }
         if (attachment.size > 10 * 1024 * 1024) {
           console.log(`❌ CreateTemplate failed: Attachment size too large for question ${i}, user ${user_id}`, {
@@ -132,7 +134,7 @@ const createTemplate = [
           await transaction.rollback();
           return res.status(400).json({ success: false, message: 'Attachment size must be less than 10MB.' });
         }
-        const uploadResult = await uploadImage(attachment); // Assuming uploadImage supports non-image files
+        const uploadResult = await uploadFile(attachment, user_id);
         if (!uploadResult.success) {
           console.log(`❌ CreateTemplate failed: Attachment upload failed for question ${i}, user ${user_id}`, {
             timestamp: new Date().toISOString(),
@@ -163,7 +165,7 @@ const createTemplate = [
           order: index,
           state: q.state ?? 'optional',
           options: q.type === 'select' ? q.options : null,
-          attachment_url: attachmentUrls[index] || null, // Store attachment URL
+          attachment_url: attachmentUrls[index] || null,
         })),
         { transaction }
       );
@@ -213,7 +215,195 @@ const createTemplate = [
         topic_id: req.body.topic_id,
         error: error.message,
         stack: error.stack,
-        body: req.body, // Log request body for debugging
+        body: req.body,
+        timestamp: new Date().toISOString(),
+      });
+      return res.status(500).json({ success: false, message: 'Server error', error: error.message });
+    }
+  },
+];
+
+const updateTemplate = [
+  ...validateUpdateTemplate,
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      console.log(`❌ UpdateTemplate validation failed: ${JSON.stringify(errors.array())}`, {
+        timestamp: new Date().toISOString(),
+      });
+      return res.status(400).json({ success: false, errors: errors.array() });
+    }
+
+    const transaction = await Template.sequelize.transaction();
+    try {
+      const { id } = req.params;
+      const { title, description, topic_id, is_public, questions, tags, permissions, version } = req.body;
+      const user_id = req.user.id;
+      const image = req.files?.image?.[0];
+      let image_url = undefined;
+
+      const template = await Template.findByPk(id, { transaction });
+      if (!template || (template.user_id !== user_id && !req.user.is_admin)) {
+        console.log(`❌ UpdateTemplate failed: Unauthorized for template ${id}, user ${user_id}`, {
+          timestamp: new Date().toISOString(),
+        });
+        await transaction.rollback();
+        return res.status(403).json({ success: false, message: 'Unauthorized' });
+      }
+
+      if (template.version !== parseInt(version, 10)) {
+        console.log(`❌ UpdateTemplate failed: Version conflict for template ${id}, user ${user_id}`, {
+          timestamp: new Date().toISOString(),
+        });
+        await transaction.rollback();
+        return res.status(409).json({ success: false, message: 'Version conflict' });
+      }
+
+      const topic = await Topic.findByPk(topic_id, { transaction });
+      if (!topic) {
+        console.log(`❌ UpdateTemplate failed: Topic ID ${topic_id} not found for user ${user_id}`, {
+          timestamp: new Date().toISOString(),
+        });
+        await transaction.rollback();
+        return res.status(400).json({ success: false, message: 'Invalid topic ID' });
+      }
+
+      if (image) {
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+        if (!allowedTypes.includes(image.mimetype)) {
+          console.log(`❌ UpdateTemplate failed: Invalid image type for template ${id}, user ${user_id}`, {
+            timestamp: new Date().toISOString(),
+          });
+          await transaction.rollback();
+          return res.status(400).json({ success: false, message: 'Invalid image type. Use JPEG, PNG, or GIF.' });
+        }
+        if (image.size > 5 * 1024 * 1024) {
+          console.log(`❌ UpdateTemplate failed: Image size too large for template ${id}, user ${user_id}`, {
+            timestamp: new Date().toISOString(),
+          });
+          await transaction.rollback();
+          return res.status(400).json({ success: false, message: 'Image size must be less than 5MB.' });
+        }
+
+        const uploadResult = await uploadFile(image, user_id);
+        if (!uploadResult.success) {
+          console.log(`❌ UpdateTemplate failed: Image upload failed for template ${id}, user ${user_id}`, {
+            timestamp: new Date().toISOString(),
+          });
+          await transaction.rollback();
+          return res.status(400).json({ success: false, message: uploadResult.message });
+        }
+        image_url = uploadResult.url;
+      }
+
+      // Handle question-level attachments
+      const questionAttachments = req.files?.questionAttachments || [];
+      const attachmentUrls = [];
+      const allowedAttachmentTypes = [
+        'image/jpeg', 'image/png', 'application/pdf', 'video/mp4', 'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      ];
+
+      for (let i = 0; i < questionAttachments.length; i++) {
+        const attachment = questionAttachments[i];
+        if (!allowedAttachmentTypes.includes(attachment.mimetype)) {
+          console.log(`❌ UpdateTemplate failed: Invalid attachment type for question ${i}, user ${user_id}`, {
+            timestamp: new Date().toISOString(),
+          });
+          await transaction.rollback();
+          return res.status(400).json({ success: false, message: 'Invalid attachment type. Use JPEG, PNG, PDF, MP4, DOC, or DOCX.' });
+        }
+        if (attachment.size > 10 * 1024 * 1024) {
+          console.log(`❌ UpdateTemplate failed: Attachment size too large for question ${i}, user ${user_id}`, {
+            timestamp: new Date().toISOString(),
+          });
+          await transaction.rollback();
+          return res.status(400).json({ success: false, message: 'Attachment size must be less than 10MB.' });
+        }
+        const uploadResult = await uploadFile(attachment, user_id);
+        if (!uploadResult.success) {
+          console.log(`❌ UpdateTemplate failed: Attachment upload failed for question ${i}, user ${user_id}`, {
+            timestamp: new Date().toISOString(),
+          });
+          await transaction.rollback();
+          return res.status(400).json({ success: false, message: uploadResult.message });
+        }
+        attachmentUrls[i] = uploadResult.url;
+      }
+
+      await Template.update(
+        {
+          title,
+          description,
+          topic_id,
+          is_public,
+          image_url: image_url !== undefined ? image_url : template.image_url,
+          version: template.version + 1,
+          search_vector: Sequelize.fn('to_tsvector', 'english', `${title} ${description || ''}`),
+        },
+        { where: { id }, transaction }
+      );
+
+      await TemplateQuestion.destroy({ where: { template_id: id }, transaction });
+      await TemplateQuestion.bulkCreate(
+        questions.map((q, index) => ({
+          template_id: id,
+          type: q.type,
+          title: q.title,
+          description: q.description,
+          is_visible_in_results: q.is_visible_in_results ?? true,
+          order: index,
+          state: q.state ?? 'optional',
+          options: q.type === 'select' ? q.options : null,
+          attachment_url: attachmentUrls[index] || null,
+        })),
+        { transaction }
+      );
+
+      await TemplateTag.destroy({ where: { template_id: id }, transaction });
+      const tagRecords = await Promise.all(
+        tags.map(async name => {
+          const [tag] = await Tag.findOrCreate({ where: { name }, transaction });
+          return tag;
+        }),
+      );
+      await TemplateTag.bulkCreate(
+        tagRecords.map(tag => ({ template_id: id, tag_id: tag.id })),
+        { transaction }
+      );
+
+      await TemplatePermission.destroy({ where: { template_id: id }, transaction });
+      if (!is_public && permissions.length > 0) {
+        await TemplatePermission.bulkCreate(
+          permissions.map(user_id => ({ template_id: id, user_id })),
+          { transaction }
+        );
+      }
+
+      const updatedTemplate = await Template.findByPk(id, {
+        include: [
+          { model: User, as: 'User', attributes: ['id', 'name'], required: false },
+          { model: TemplateTag, as: 'TemplateTags', include: [{ model: Tag, as: 'Tag', attributes: ['id', 'name'] }], required: false },
+          { model: TemplatePermission, as: 'TemplatePermissions', required: false },
+          { model: TemplateQuestion, as: 'TemplateQuestions', attributes: ['id', 'type', 'title', 'description', 'is_visible_in_results', 'order', 'state', 'options', 'attachment_url'] },
+          { model: Topic, as: 'Topic', attributes: ['id', 'name'], required: false },
+        ],
+        transaction
+      });
+
+      await transaction.commit();
+      console.log(`✅ Template updated: ID ${id}, Title: ${title}, User ID ${user_id}`, {
+        timestamp: new Date().toISOString(),
+      });
+      return res.json({ success: true, template: updatedTemplate, message: 'Template updated successfully' });
+    } catch (error) {
+      await transaction.rollback();
+      console.error('❌ Error updating template:', {
+        template_id: req.params.id,
+        user_id: req.user.id,
+        error: error.message,
+        stack: error.stack,
+        body: req.body,
         timestamp: new Date().toISOString(),
       });
       return res.status(500).json({ success: false, message: 'Server error', error: error.message });
@@ -296,194 +486,6 @@ const getTemplates = async (req, res) => {
     return res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };
-
-const updateTemplate = [
-  ...validateUpdateTemplate,
-  async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      console.log(`❌ UpdateTemplate validation failed: ${JSON.stringify(errors.array())}`, {
-        timestamp: new Date().toISOString(),
-      });
-      return res.status(400).json({ success: false, errors: errors.array() });
-    }
-
-    const transaction = await Template.sequelize.transaction();
-    try {
-      const { id } = req.params;
-      const { title, description, topic_id, is_public, questions, tags, permissions, version } = req.body;
-      const user_id = req.user.id;
-      const image = req.files?.image;
-      let image_url = undefined;
-
-      const template = await Template.findByPk(id, { transaction });
-      if (!template || (template.user_id !== user_id && !req.user.is_admin)) {
-        console.log(`❌ UpdateTemplate failed: Unauthorized for template ${id}, user ${user_id}`, {
-          timestamp: new Date().toISOString(),
-        });
-        await transaction.rollback();
-        return res.status(403).json({ success: false, message: 'Unauthorized' });
-      }
-
-      if (template.version !== parseInt(version, 10)) {
-        console.log(`❌ UpdateTemplate failed: Version conflict for template ${id}, user ${user_id}`, {
-          timestamp: new Date().toISOString(),
-        });
-        await transaction.rollback();
-        return res.status(409).json({ success: false, message: 'Version conflict' });
-      }
-
-      const topic = await Topic.findByPk(topic_id, { transaction });
-      if (!topic) {
-        console.log(`❌ UpdateTemplate failed: Topic ID ${topic_id} not found for user ${user_id}`, {
-          timestamp: new Date().toISOString(),
-        });
-        await transaction.rollback();
-        return res.status(400).json({ success: false, message: 'Invalid topic ID' });
-      }
-
-      if (image) {
-        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
-        if (!allowedTypes.includes(image.mimetype)) {
-          console.log(`❌ UpdateTemplate failed: Invalid image type for template ${id}, user ${user_id}`, {
-            timestamp: new Date().toISOString(),
-          });
-          await transaction.rollback();
-          return res.status(400).json({ success: false, message: 'Invalid image type. Use JPEG, PNG, or GIF.' });
-        }
-        if (image.size > 5 * 1024 * 1024) {
-          console.log(`❌ UpdateTemplate failed: Image size too large for template ${id}, user ${user_id}`, {
-            timestamp: new Date().toISOString(),
-          });
-          await transaction.rollback();
-          return res.status(400).json({ success: false, message: 'Image size must be less than 5MB.' });
-        }
-
-        const uploadResult = await uploadImage(image);
-        if (!uploadResult.success) {
-          console.log(`❌ UpdateTemplate failed: Image upload failed for template ${id}, user ${user_id}`, {
-            timestamp: new Date().toISOString(),
-          });
-          await transaction.rollback();
-          return res.status(400).json({ success: false, message: uploadResult.message });
-        }
-        image_url = uploadResult.url;
-      }
-
-      // Handle question-level attachments
-      const questionAttachments = req.files?.questionAttachments || [];
-      const attachmentUrls = [];
-      const allowedAttachmentTypes = [
-        'image/jpeg', 'image/png', 'application/pdf', 'video/mp4', 'application/msword',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-      ];
-
-      for (let i = 0; i < questionAttachments.length; i++) {
-        const attachment = questionAttachments[i];
-        if (!allowedAttachmentTypes.includes(attachment.mimetype)) {
-          console.log(`❌ UpdateTemplate failed: Invalid attachment type for question ${i}, user ${user_id}`, {
-            timestamp: new Date().toISOString(),
-          });
-          await transaction.rollback();
-          return res.status(400).json({ success: false, message: 'Invalid attachment type. Use JPEG, PNG, PDF, MP4, or DOC.' });
-        }
-        if (attachment.size > 10 * 1024 * 1024) {
-          console.log(`❌ UpdateTemplate failed: Attachment size too large for question ${i}, user ${user_id}`, {
-            timestamp: new Date().toISOString(),
-          });
-          await transaction.rollback();
-          return res.status(400).json({ success: false, message: 'Attachment size must be less than 10MB.' });
-        }
-        const uploadResult = await uploadImage(attachment); // Assuming uploadImage supports non-image files
-        if (!uploadResult.success) {
-          console.log(`❌ UpdateTemplate failed: Attachment upload failed for question ${i}, user ${user_id}`, {
-            timestamp: new Date().toISOString(),
-          });
-          await transaction.rollback();
-          return res.status(400).json({ success: false, message: uploadResult.message });
-        }
-        attachmentUrls[i] = uploadResult.url;
-      }
-
-      await Template.update(
-        {
-          title,
-          description,
-          topic_id,
-          is_public,
-          image_url: image_url !== undefined ? image_url : template.image_url,
-          version: template.version + 1,
-          search_vector: Sequelize.fn('to_tsvector', 'english', `${title} ${description || ''}`),
-        },
-        { where: { id }, transaction }
-      );
-
-      await TemplateQuestion.destroy({ where: { template_id: id }, transaction });
-      await TemplateQuestion.bulkCreate(
-        questions.map((q, index) => ({
-          template_id: id,
-          type: q.type,
-          title: q.title,
-          description: q.description,
-          is_visible_in_results: q.is_visible_in_results ?? true,
-          order: index,
-          state: q.state ?? 'optional',
-          options: q.type === 'select' ? q.options : null,
-          attachment_url: attachmentUrls[index] || null, // Store attachment URL
-        })),
-        { transaction }
-      );
-
-      await TemplateTag.destroy({ where: { template_id: id }, transaction });
-      const tagRecords = await Promise.all(
-        tags.map(async name => {
-          const [tag] = await Tag.findOrCreate({ where: { name }, transaction });
-          return tag;
-        }),
-      );
-      await TemplateTag.bulkCreate(
-        tagRecords.map(tag => ({ template_id: id, tag_id: tag.id })),
-        { transaction }
-      );
-
-      await TemplatePermission.destroy({ where: { template_id: id }, transaction });
-      if (!is_public && permissions.length > 0) {
-        await TemplatePermission.bulkCreate(
-          permissions.map(user_id => ({ template_id: id, user_id })),
-          { transaction }
-        );
-      }
-
-      const updatedTemplate = await Template.findByPk(id, {
-        include: [
-          { model: User, as: 'User', attributes: ['id', 'name'], required: false },
-          { model: TemplateTag, as: 'TemplateTags', include: [{ model: Tag, as: 'Tag', attributes: ['id', 'name'] }], required: false },
-          { model: TemplatePermission, as: 'TemplatePermissions', required: false },
-          { model: TemplateQuestion, as: 'TemplateQuestions', attributes: ['id', 'type', 'title', 'description', 'is_visible_in_results', 'order', 'state', 'options', 'attachment_url'] },
-          { model: Topic, as: 'Topic', attributes: ['id', 'name'], required: false },
-        ],
-        transaction
-      });
-
-      await transaction.commit();
-      console.log(`✅ Template updated: ID ${id}, Title: ${title}, User ID ${user_id}`, {
-        timestamp: new Date().toISOString(),
-      });
-      return res.json({ success: true, template: updatedTemplate, message: 'Template updated successfully' });
-    } catch (error) {
-      await transaction.rollback();
-      console.error('❌ Error updating template:', {
-        template_id: req.params.id,
-        user_id: req.user.id,
-        error: error.message,
-        stack: error.stack,
-        body: req.body, // Log request body for debugging
-        timestamp: new Date().toISOString(),
-      });
-      return res.status(500).json({ success: false, message: 'Server error', error: error.message });
-    }
-  },
-];
 
 const searchTemplates = async (req, res) => {
   try {
