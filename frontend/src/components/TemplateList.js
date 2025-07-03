@@ -23,6 +23,11 @@ function TemplateList({ templates, onDelete, onEdit, showActions = false, ariaLa
   // Log templates for debugging
   useEffect(() => {
     console.log(`✅ TemplateList render: templates=${templates.length}, timestamp=${new Date().toISOString()}`);
+    templates.forEach((template) => {
+      if (!template.id) {
+        console.warn(`⚠️ Template missing ID: ${JSON.stringify(template)}, timestamp=${new Date().toISOString()}`);
+      }
+    });
   }, [templates]);
 
   // Handle click outside dropdown
@@ -50,6 +55,9 @@ function TemplateList({ templates, onDelete, onEdit, showActions = false, ariaLa
         setDeleteError(null);
         try {
           const token = getToken();
+          if (!token) {
+            throw new Error('No token available');
+          }
           console.log(`✅ Deleting template ${id}, timestamp=${new Date().toISOString()}`);
           const res = await axios.delete(`${API_BASE}/api/templates/${id}`, {
             headers: { Authorization: `Bearer ${token}` },
@@ -59,19 +67,24 @@ function TemplateList({ templates, onDelete, onEdit, showActions = false, ariaLa
           setDropdownId(null);
           retryCount.current = 0;
         } catch (err) {
-          console.error('❌ Delete error:', { status: err.response?.status, timestamp: new Date().toISOString() });
+          console.error('❌ Delete error:', { status: err.response?.status, message: err.message, timestamp: new Date().toISOString() });
           if (err.response?.status === 429 && retryCount.current < maxRetries) {
             retryCount.current += 1;
             console.log(`✅ Retrying delete for template ${id}, attempt ${retryCount.current}`);
             await new Promise(resolve => setTimeout(resolve, 1000 * retryCount.current));
             return handleDelete(id);
           }
-          setDeleteError(
-            err.response?.status === 401 ? t('templateList.unauthorized') :
-            err.response?.status === 429 ? t('templateList.rateLimit') :
-            err.response?.status === 404 ? t('templateList.notFound') :
-            err.response?.data?.message || t('templateList.deleteError')
-          );
+          if (err.message === 'No token available' || err.response?.status === 401) {
+            setDeleteError(t('templateList.unauthorized'));
+            // Optionally redirect to login
+            // window.location.href = '/login';
+          } else {
+            setDeleteError(
+              err.response?.status === 429 ? t('templateList.rateLimit') :
+              err.response?.status === 404 ? t('templateList.notFound') :
+              err.response?.data?.message || t('templateList.deleteError')
+            );
+          }
         } finally {
           setDeletingId(null);
         }
@@ -85,15 +98,21 @@ function TemplateList({ templates, onDelete, onEdit, showActions = false, ariaLa
       {
         Header: t('templateList.title'),
         accessor: 'title',
-        Cell: ({ row }) => (
-          <Link
-            to={`/templates/${row.original.id}`}
-            aria-label={t('templateList.viewTemplate', { title: row.original.title })}
-            id={`template-link-${row.original.id}`}
-          >
-            {row.original.title}
-          </Link>
-        ),
+        Cell: ({ row }) => {
+          if (!row.original.id) {
+            console.error(`❌ Missing template ID for title: ${row.original.title}, timestamp=${new Date().toISOString()}`);
+            return <span>{row.original.title || t('templateList.unknown')}</span>;
+          }
+          return (
+            <Link
+              to={`/templates/${row.original.id}`}
+              aria-label={t('templateList.viewTemplate', { title: row.original.title })}
+              id={`template-link-${row.original.id}`}
+            >
+              {row.original.title}
+            </Link>
+          );
+        },
       },
       {
         Header: t('templateList.description'),
@@ -122,11 +141,11 @@ function TemplateList({ templates, onDelete, onEdit, showActions = false, ariaLa
       baseColumns.push({
         Header: t('templateList.actions'),
         Cell: ({ row }) => {
-          const canEditDelete = user && (user.id === row.original.user_id || user.is_admin);
           if (!row.original.id) {
-            console.error('❌ Invalid template_id in actions:', row.original.id, `timestamp=${new Date().toISOString()}`);
+            console.error('❌ Invalid template_id in actions:', row.original, `timestamp=${new Date().toISOString()}`);
             return <span>{t('templateList.invalidId')}</span>;
           }
+          const canEditDelete = user && (user.id === row.original.user_id || user.is_admin);
           return (
             <DropdownButton
               id={`dropdown-menu-${row.original.id}`}
