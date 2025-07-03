@@ -8,26 +8,29 @@ cloudinary.config({
   secure: true,
 });
 
-// Note: Requires multer middleware in server.js for file handling
-const uploadImage = async (file, userId = null) => {
+// Uploads any supported file type (images, PDFs, videos, documents)
+const uploadFile = async (file, userId = null) => {
   try {
     if (!file || !file.path) {
-      console.error('❌ Image upload: No file provided or invalid file object', {
+      console.error('❌ File upload: No file provided or invalid file object', {
         userId,
         timestamp: new Date().toISOString(),
       });
       return { success: false, message: 'No file provided or invalid file object' };
     }
 
-    console.log(`✅ Image upload: Starting upload for file ${file.path}`, {
+    console.log(`✅ File upload: Starting upload for file ${file.path}`, {
       userId,
       filename: file.originalname,
+      mimetype: file.mimetype,
       timestamp: new Date().toISOString(),
     });
+
     const result = await cloudinary.uploader.upload(file.path, {
       folder: 'forms-app/templates',
-      quality: 'auto',
-      fetch_format: 'auto',
+      resource_type: 'auto', // Automatically detect file type (image, video, raw)
+      quality: file.mimetype.startsWith('image/') ? 'auto' : undefined,
+      fetch_format: file.mimetype.startsWith('image/') ? 'auto' : undefined,
     });
 
     // Clean up temporary file
@@ -36,20 +39,22 @@ const uploadImage = async (file, userId = null) => {
       timestamp: new Date().toISOString(),
     }));
 
-    console.log(`✅ Image upload: Successfully uploaded to ${result.secure_url}`, {
+    console.log(`✅ File upload: Successfully uploaded to ${result.secure_url}`, {
       userId,
       timestamp: new Date().toISOString(),
     });
     return { success: true, url: result.secure_url };
   } catch (error) {
-    console.error('❌ Image upload error:', {
+    console.error('❌ File upload error:', {
       userId,
       message: error.message,
       stack: error.stack,
+      filename: file?.originalname,
+      mimetype: file?.mimetype,
       timestamp: new Date().toISOString(),
     });
-    return { success: false, message: `Image upload failed: ${error.message}` };
+    return { success: false, message: `File upload failed: ${error.message}` };
   }
 };
 
-module.exports = { uploadImage };
+module.exports = { uploadFile };
