@@ -1,0 +1,22 @@
+{
+  "development": {
+    "url": "postgres://neondb_owner:npg_BW3X5CmnQoHx@ep-proud-frog-a4vupl9l-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require",
+    "dialect": "postgres",
+    "dialectOptions": {
+      "ssl": {
+        "require": true,
+        "rejectUnauthorized": false
+      }
+    }
+  },
+  "production": {
+    "url": "postgres://neondb_owner:npg_BW3X5CmnQoHx@ep-proud-frog-a4vupl9l-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require",
+    "dialect": "postgres",
+    "dialectOptions": {
+      "ssl": {
+        "require": true,
+        "rejectUnauthorized": false
+      }
+    }
+  }
+}
