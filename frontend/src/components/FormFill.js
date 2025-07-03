@@ -55,6 +55,12 @@ function FormFill() {
         }
       } catch (err) {
         console.error('❌ Fetch error:', { status: err.response?.status });
+        if (err.response?.status === 401 && retryCount.current < 3) {
+          retryCount.current += 1;
+          console.log(`✅ Retrying fetch for template ${templateId}, attempt ${retryCount.current}`);
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          return fetchTemplate();
+        }
         if (isMounted.current) {
           setCanAccess(false);
           setError(
@@ -80,10 +86,10 @@ function FormFill() {
     setError(null);
     setSuccessMsg(null);
 
-    const requiredQuestions = (template.TemplateQuestions || []).filter(q => q.required);
+    const requiredQuestions = (template.TemplateQuestions || []).filter(q => q.state === 'required');
     const answers = (template.TemplateQuestions || []).map(q => {
       const val = data[q.id];
-      if (q.required && (val === undefined || val === '')) {
+      if (q.state === 'required' && (val === undefined || val === '')) {
         return null;
       }
       let formattedVal;
@@ -271,19 +277,27 @@ function FormFill() {
         {(template.TemplateQuestions || []).sort((a, b) => a.order - b.order).map((q) => (
           <Form.Group key={q.id} className="mb-3" controlId={`question-${q.id}`}>
             <Form.Label>
-              {q.title} {q.required && <span className="text-danger">*</span>}
+              {q.title} {q.state === 'required' && <span className="text-danger">*</span>}
             </Form.Label>
             {q.description && (
               <Form.Text className={`d-block mb-2 ${theme === 'dark' ? 'text-light' : ''}`} id={`desc-${q.id}`}>
                 {q.description}
               </Form.Text>
             )}
+            {q.attachment_url && (
+              <div className="mb-2">
+                <strong>{t('form.attachment')}:</strong>{' '}
+                <a href={q.attachment_url} target="_blank" rel="noopener noreferrer" id={`attachment-${q.id}`}>
+                  {t('form.viewAttachment')}
+                </a>
+              </div>
+            )}
 
             {q.type === 'string' && (
               <Form.Control
                 type="text"
                 isInvalid={!!errors[q.id]}
-                {...register(q.id, { required: q.required ? t('form.required') : false })}
+                {...register(q.id, { required: q.state === 'required' ? t('form.required') : false })}
                 aria-describedby={q.description ? `desc-${q.id}` : undefined}
                 aria-label={t('form.inputLabel', { title: q.title })}
                 className={theme === 'dark' ? 'bg-dark text-light border-light' : ''}
@@ -296,7 +310,7 @@ function FormFill() {
                 as="textarea"
                 rows={3}
                 isInvalid={!!errors[q.id]}
-                {...register(q.id, { required: q.required ? t('form.required') : false })}
+                {...register(q.id, { required: q.state === 'required' ? t('form.required') : false })}
                 aria-describedby={q.description ? `desc-${q.id}` : undefined}
                 aria-label={t('form.inputLabel', { title: q.title })}
                 className={theme === 'dark' ? 'bg-dark text-light border-light' : ''}
@@ -309,7 +323,7 @@ function FormFill() {
                 type="number"
                 isInvalid={!!errors[q.id]}
                 {...register(q.id, {
-                  required: q.required ? t('form.required') : false,
+                  required: q.state === 'required' ? t('form.required') : false,
                   valueAsNumber: true,
                   validate: (value) =>
                     value === undefined || !isNaN(value) ? true : t('form.invalidNumber'),
@@ -343,7 +357,7 @@ function FormFill() {
                     label={option}
                     value={option}
                     isInvalid={!!errors[q.id]}
-                    {...register(q.id, { required: q.required ? t('form.required') : false })}
+                    {...register(q.id, { required: q.state === 'required' ? t('form.required') : false })}
                     aria-describedby={q.description ? `desc-${q.id}` : undefined}
                     id={`question-${q.id}-option-${index}`}
                   />
@@ -354,7 +368,7 @@ function FormFill() {
             {(q.type === 'dropdown' || q.type === 'select') && (
               <Form.Select
                 isInvalid={!!errors[q.id]}
-                {...register(q.id, { required: q.required ? t('form.required') : false })}
+                {...register(q.id, { required: q.state === 'required' ? t('form.required') : false })}
                 aria-describedby={q.description ? `desc-${q.id}` : undefined}
                 aria-label={t('form.inputLabel', { title: q.title })}
                 className={theme === 'dark' ? 'bg-dark text-light border-light' : ''}
@@ -380,7 +394,7 @@ function FormFill() {
                     value={value}
                     isInvalid={!!errors[q.id]}
                     {...register(q.id, { 
-                      required: q.required ? t('form.required') : false,
+                      required: q.state === 'required' ? t('form.required') : false,
                       valueAsNumber: true,
                     })}
                     aria-describedby={q.description ? `desc-${q.id}` : undefined}
@@ -394,7 +408,7 @@ function FormFill() {
               <Form.Control
                 type="date"
                 isInvalid={!!errors[q.id]}
-                {...register(q.id, { required: q.required ? t('form.required') : false })}
+                {...register(q.id, { required: q.state === 'required' ? t('form.required') : false })}
                 aria-describedby={q.description ? `desc-${q.id}` : undefined}
                 aria-label={t('form.inputLabel', { title: q.title })}
                 className={theme === 'dark' ? 'bg-dark text-light border-light' : ''}
@@ -406,7 +420,7 @@ function FormFill() {
               <Form.Control
                 type="time"
                 isInvalid={!!errors[q.id]}
-                {...register(q.id, { required: q.required ? t('form.required') : false })}
+                {...register(q.id, { required: q.state === 'required' ? t('form.required') : false })}
                 aria-describedby={q.description ? `desc-${q.id}` : undefined}
                 aria-label={t('form.inputLabel', { title: q.title })}
                 className={theme === 'dark' ? 'bg-dark text-light border-light' : ''}
