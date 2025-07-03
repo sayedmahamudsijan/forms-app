@@ -34,7 +34,7 @@ function Home() {
       setLoadingTop(true);
       setError(null);
       try {
-        console.log('✅ Fetching public templates');
+        console.log('✅ Fetching public templates', { timestamp: new Date().toISOString() });
         const requests = [
           axios.get(`${API_BASE}/api/templates?latest=true`),
           axios.get(`${API_BASE}/api/templates?top=5`),
@@ -43,15 +43,18 @@ function Home() {
         if (isMounted) {
           setLatestTemplates(responses[0].data.templates || []);
           setTopTemplates(responses[1].data.templates || []);
-          console.log('Latest Templates Response:', JSON.stringify(responses[0].data.templates, null, 2));
-          console.log('Top Templates Response:', JSON.stringify(responses[1].data.templates, null, 2));
+          console.log('✅ Latest Templates:', { count: responses[0].data.templates?.length, timestamp: new Date().toISOString() });
+          console.log('✅ Top Templates:', { count: responses[1].data.templates?.length, timestamp: new Date().toISOString() });
           setError(null);
         }
       } catch (err) {
         if (isMounted) {
-          console.error('❌ Error fetching public templates:', err);
+          console.error('❌ Error fetching public templates:', {
+            status: err.response?.status,
+            message: err.response?.data?.message,
+            timestamp: new Date().toISOString(),
+          });
           setError(
-            err.response?.status === 401 ? t('home.unauthorized') :
             err.response?.status === 429 ? t('home.rateLimit') :
             t('home.loadError')
           );
@@ -72,18 +75,22 @@ function Home() {
       setLoadingMyTemplates(true);
       try {
         const token = getToken();
-        console.log('✅ Fetching my templates');
+        console.log('✅ Fetching my templates', { timestamp: new Date().toISOString() });
         const response = await axios.get(`${API_BASE}/api/templates?user=true`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (isMounted) {
           setMyTemplates(response.data.templates || []);
-          console.log('My Templates Response:', JSON.stringify(response.data.templates, null, 2));
+          console.log('✅ My Templates:', { count: response.data.templates?.length, timestamp: new Date().toISOString() });
           setError(null);
         }
       } catch (err) {
         if (isMounted) {
-          console.error('❌ Error fetching my templates:', err);
+          console.error('❌ Error fetching my templates:', {
+            status: err.response?.status,
+            message: err.response?.data?.message,
+            timestamp: new Date().toISOString(),
+          });
           setError(
             err.response?.status === 401 ? t('home.unauthorized') :
             err.response?.status === 403 ? t('home.forbidden') :
@@ -108,20 +115,25 @@ function Home() {
 
   const handleDelete = async (templateId) => {
     if (!templateId) {
-      console.error('❌ Invalid templateId for delete:', templateId);
+      console.error('❌ Invalid templateId for delete:', { templateId, timestamp: new Date().toISOString() });
       setError(t('home.invalidTemplateId'));
       return;
     }
     try {
       const token = getToken();
-      console.log(`✅ Deleting template ${templateId}`);
-      const response = await axios.delete(`${API_BASE}/api/templates/${templateId}`, {
+      console.log(`✅ Deleting template ${templateId}`, { timestamp: new Date().toISOString() });
+      await axios.delete(`${API_BASE}/api/templates/${templateId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      console.log('Delete Response:', JSON.stringify(response.data, null, 2));
       setMyTemplates(myTemplates.filter(template => template.id !== templateId));
+      console.log('✅ Template deleted:', { templateId, timestamp: new Date().toISOString() });
     } catch (err) {
-      console.error('❌ Error deleting template:', err);
+      console.error('❌ Error deleting template:', {
+        templateId,
+        status: err.response?.status,
+        message: err.response?.data?.message,
+        timestamp: new Date().toISOString(),
+      });
       setError(
         err.response?.status === 401 ? t('home.unauthorized') :
         err.response?.status === 403 ? t('home.forbidden') :
@@ -134,13 +146,13 @@ function Home() {
   const handleSearch = (e) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      console.log(`✅ Searching for: ${searchQuery}`);
+      console.log(`✅ Searching for: ${searchQuery}`, { timestamp: new Date().toISOString() });
       navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
     }
   };
 
   const handleRetry = async () => {
-    console.log('✅ Retrying fetch templates');
+    console.log('✅ Retrying fetch templates', { timestamp: new Date().toISOString() });
     setError(null);
     setLoadingLatest(true);
     setLoadingTop(true);
@@ -148,7 +160,7 @@ function Home() {
 
     const fetchPublicTemplates = async () => {
       try {
-        console.log('✅ Retrying public templates');
+        console.log('✅ Retrying public templates', { timestamp: new Date().toISOString() });
         const requests = [
           axios.get(`${API_BASE}/api/templates?latest=true`),
           axios.get(`${API_BASE}/api/templates?top=5`),
@@ -156,13 +168,16 @@ function Home() {
         const responses = await Promise.all(requests);
         setLatestTemplates(responses[0].data.templates || []);
         setTopTemplates(responses[1].data.templates || []);
-        console.log('Retry Latest Templates Response:', JSON.stringify(responses[0].data.templates, null, 2));
-        console.log('Retry Top Templates Response:', JSON.stringify(responses[1].data.templates, null, 2));
+        console.log('✅ Retry Latest Templates:', { count: responses[0].data.templates?.length, timestamp: new Date().toISOString() });
+        console.log('✅ Retry Top Templates:', { count: responses[1].data.templates?.length, timestamp: new Date().toISOString() });
         setError(null);
       } catch (err) {
-        console.error('❌ Error retrying public templates:', err);
+        console.error('❌ Error retrying public templates:', {
+          status: err.response?.status,
+          message: err.response?.data?.message,
+          timestamp: new Date().toISOString(),
+        });
         setError(
-          err.response?.status === 401 ? t('home.unauthorized') :
           err.response?.status === 429 ? t('home.rateLimit') :
           t('home.loadError')
         );
@@ -179,15 +194,19 @@ function Home() {
       }
       try {
         const token = getToken();
-        console.log('✅ Retrying my templates');
+        console.log('✅ Retrying my templates', { timestamp: new Date().toISOString() });
         const response = await axios.get(`${API_BASE}/api/templates?user=true`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setMyTemplates(response.data.templates || []);
-        console.log('Retry My Templates Response:', JSON.stringify(response.data.templates, null, 2));
+        console.log('✅ Retry My Templates:', { count: response.data.templates?.length, timestamp: new Date().toISOString() });
         setError(null);
       } catch (err) {
-        console.error('❌ Error retrying my templates:', err);
+        console.error('❌ Error retrying my templates:', {
+          status: err.response?.status,
+          message: err.response?.data?.message,
+          timestamp: new Date().toISOString(),
+        });
         setError(
           err.response?.status === 401 ? t('home.unauthorized') :
           err.response?.status === 403 ? t('home.forbidden') :
@@ -284,7 +303,7 @@ function Home() {
                     variant={theme === 'dark' ? 'outline-light' : 'primary'}
                     aria-label={t('home.viewTemplate', { title: template.title })}
                   >
-                    {t('View')}
+                    {t('home.view')}
                   </Button>
                 </Card.Body>
               </Card>
