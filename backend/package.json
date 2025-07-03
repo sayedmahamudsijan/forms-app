@@ -7,7 +7,7 @@
     "migrate": "npx sequelize-cli db:migrate"
   },
   "engines": {
-    "node": "18.x" // Use 18.x for compatibility with dependencies
+    "node": "18.x" 
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
