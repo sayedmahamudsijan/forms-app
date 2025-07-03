@@ -34,9 +34,9 @@ function TemplatePage() {
   const maxRetries = 3;
 
   useEffect(() => {
-    console.log('✅ TemplatePage loaded:', { id, timestamp: new Date().toISOString() });
+    console.log('✅ TemplatePage loaded:', { id, userId: user?.id, timestamp: new Date().toISOString() });
     const fetchTemplate = async (retry = false) => {
-      console.log('✅ Fetching template:', { id, userId: user?.id, retry });
+      console.log('✅ Fetching template:', { id, userId: user?.id, retry, timestamp: new Date().toISOString() });
       setLoadingTemplate(true);
       setErrorTemplate(null);
       try {
@@ -44,20 +44,28 @@ function TemplatePage() {
         const res = await axios.get(`${API_BASE}/api/templates/${id}`, { headers });
         const data = res.data.template || res.data;
         if (!data.id) throw new Error('Invalid template data');
-        console.log('✅ Template fetched:', data.title);
+        console.log('✅ Template fetched:', { title: data.title, questions: data.TemplateQuestions?.length || 0, timestamp: new Date().toISOString() });
         setTemplate(data);
         setLikeCount(data.like_count || 0);
         setIsLiked(data.user_liked || false);
         setRetryCount(0);
       } catch (err) {
-        console.error('❌ Error fetching template:', { status: err.response?.status });
+        console.error('❌ Error fetching template:', {
+          status: err.response?.status,
+          message: err.response?.data?.message,
+          timestamp: new Date().toISOString(),
+        });
         if (err.response?.status === 401 && retryCount < maxRetries && !retry) {
           try {
             await refreshToken();
             setRetryCount(prev => prev + 1);
             await fetchTemplate(true);
           } catch (refreshErr) {
-            console.error('❌ Error retrying template:', { status: refreshErr.response?.status });
+            console.error('❌ Error retrying template:', {
+              status: refreshErr.response?.status,
+              message: refreshErr.response?.data?.message,
+              timestamp: new Date().toISOString(),
+            });
             setErrorTemplate(t('templatePage.unauthorized'));
             navigate('/login');
           }
@@ -79,23 +87,31 @@ function TemplatePage() {
         setLoadingResults(false);
         return;
       }
-      console.log('✅ Fetching results:', { id, userId: user.id });
+      console.log('✅ Fetching results:', { id, userId: user.id, timestamp: new Date().toISOString() });
       setLoadingResults(true);
       setErrorResults(null);
       try {
         const headers = getAuthHeaders();
         const res = await axios.get(`${API_BASE}/api/templates/${id}/results`, { headers });
-        console.log('✅ Results fetched:', res.data.forms?.length || 0);
+        console.log('✅ Results fetched:', { count: res.data.forms?.length || 0, timestamp: new Date().toISOString() });
         setResults(res.data.forms || []);
       } catch (err) {
-        console.error('❌ Error fetching results:', { status: err.response?.status });
+        console.error('❌ Error fetching results:', {
+          status: err.response?.status,
+          message: err.response?.data?.message,
+          timestamp: new Date().toISOString(),
+        });
         if (err.response?.status === 401 && retryCount < maxRetries) {
           try {
             await refreshToken();
             setRetryCount(prev => prev + 1);
             await fetchResults();
           } catch (refreshErr) {
-            console.error('❌ Error retrying results:', { status: refreshErr.response?.status });
+            console.error('❌ Error retrying results:', {
+              status: refreshErr.response?.status,
+              message: refreshErr.response?.data?.message,
+              timestamp: new Date().toISOString(),
+            });
             setErrorResults(t('templatePage.unauthorized'));
             navigate('/login');
           }
@@ -123,7 +139,7 @@ function TemplatePage() {
       navigate('/login');
       return;
     }
-    console.log(`✅ Toggling like for template ${id}`);
+    console.log(`✅ Toggling like for template ${id}`, { timestamp: new Date().toISOString() });
     setLoadingLike(true);
     setErrorLike(null);
     try {
@@ -133,18 +149,26 @@ function TemplatePage() {
         {},
         { headers }
       );
-      console.log('✅ Like success:', response.data.success);
+      console.log('✅ Like success:', { success: response.data.success, timestamp: new Date().toISOString() });
       setIsLiked(!isLiked);
       setLikeCount(isLiked ? likeCount - 1 : likeCount + 1);
     } catch (err) {
-      console.error('❌ Error liking template:', { status: err.response?.status });
+      console.error('❌ Error liking template:', {
+        status: err.response?.status,
+        message: err.response?.data?.message,
+        timestamp: new Date().toISOString(),
+      });
       if (err.response?.status === 401 && retryCount < maxRetries) {
         try {
           await refreshToken();
           setRetryCount(prev => prev + 1);
           await handleLike();
         } catch (refreshErr) {
-          console.error('❌ Error retrying like:', { status: refreshErr.response?.status });
+          console.error('❌ Error retrying like:', {
+            status: refreshErr.response?.status,
+            message: refreshErr.response?.data?.message,
+            timestamp: new Date().toISOString(),
+          });
           setErrorLike(t('templatePage.unauthorized'));
           navigate('/login');
         }
@@ -162,21 +186,29 @@ function TemplatePage() {
 
   const handleDelete = async () => {
     if (!window.confirm(t('templatePage.confirmDelete'))) return;
-    console.log(`✅ Deleting template ${id}`);
+    console.log(`✅ Deleting template ${id}`, { timestamp: new Date().toISOString() });
     try {
       const headers = getAuthHeaders();
       const response = await axios.delete(`${API_BASE}/api/templates/${id}`, { headers });
-      console.log('✅ Delete success:', response.data.success);
+      console.log('✅ Delete success:', { success: response.data.success, timestamp: new Date().toISOString() });
       navigate('/');
     } catch (err) {
-      console.error('❌ Error deleting template:', { status: err.response?.status });
+      console.error('❌ Error deleting template:', {
+        status: err.response?.status,
+        message: err.response?.data?.message,
+        timestamp: new Date().toISOString(),
+      });
       if (err.response?.status === 401 && retryCount < maxRetries) {
         try {
           await refreshToken();
           setRetryCount(prev => prev + 1);
           await handleDelete();
         } catch (refreshErr) {
-          console.error('❌ Error retrying delete:', { status: refreshErr.response?.status });
+          console.error('❌ Error retrying delete:', {
+            status: refreshErr.response?.status,
+            message: refreshErr.response?.data?.message,
+            timestamp: new Date().toISOString(),
+          });
           setErrorTemplate(t('templatePage.unauthorized'));
           navigate('/login');
         }
@@ -191,7 +223,7 @@ function TemplatePage() {
   };
 
   const handleRetry = async (type) => {
-    console.log(`✅ Retrying ${type} fetch for template ${id}`);
+    console.log(`✅ Retrying ${type} fetch for template ${id}`, { timestamp: new Date().toISOString() });
     setErrorTemplate(null);
     setErrorResults(null);
     await new Promise(resolve => setTimeout(resolve, 1000));
@@ -202,20 +234,28 @@ function TemplatePage() {
         const res = await axios.get(`${API_BASE}/api/templates/${id}`, { headers });
         const data = res.data.template || res.data;
         if (!data.id) throw new Error('Invalid template data');
-        console.log('✅ Retry template fetched:', data.title);
+        console.log('✅ Retry template fetched:', { title: data.title, questions: data.TemplateQuestions?.length || 0, timestamp: new Date().toISOString() });
         setTemplate(data);
         setLikeCount(data.like_count || 0);
         setIsLiked(data.user_liked || false);
         setRetryCount(0);
       } catch (err) {
-        console.error('❌ Error retrying template:', { status: err.response?.status });
+        console.error('❌ Error retrying template:', {
+          status: err.response?.status,
+          message: err.response?.data?.message,
+          timestamp: new Date().toISOString(),
+        });
         if (err.response?.status === 401 && retryCount < maxRetries) {
           try {
             await refreshToken();
             setRetryCount(prev => prev + 1);
             await handleRetry('template');
           } catch (refreshErr) {
-            console.error('❌ Error retrying template after refresh:', { status: refreshErr.response?.status });
+            console.error('❌ Error retrying template after refresh:', {
+              status: refreshErr.response?.status,
+              message: refreshErr.response?.data?.message,
+              timestamp: new Date().toISOString(),
+            });
             setErrorTemplate(t('templatePage.unauthorized'));
             navigate('/login');
           }
@@ -236,18 +276,26 @@ function TemplatePage() {
       try {
         const headers = getAuthHeaders();
         const res = await axios.get(`${API_BASE}/api/templates/${id}/results`, { headers });
-        console.log('✅ Retry results fetched:', res.data.forms?.length || 0);
+        console.log('✅ Retry results fetched:', { count: res.data.forms?.length || 0, timestamp: new Date().toISOString() });
         setResults(res.data.forms || []);
         setRetryCount(0);
       } catch (err) {
-        console.error('❌ Error retrying results:', { status: err.response?.status });
+        console.error('❌ Error retrying results:', {
+          status: err.response?.status,
+          message: err.response?.data?.message,
+          timestamp: new Date().toISOString(),
+        });
         if (err.response?.status === 401 && retryCount < maxRetries) {
           try {
             await refreshToken();
             setRetryCount(prev => prev + 1);
             await handleRetry('results');
           } catch (refreshErr) {
-            console.error('❌ Error retrying results after refresh:', { status: refreshErr.response?.status });
+            console.error('❌ Error retrying results after refresh:', {
+              status: refreshErr.response?.status,
+              message: refreshErr.response?.data?.message,
+              timestamp: new Date().toISOString(),
+            });
             setErrorResults(t('templatePage.unauthorized'));
             navigate('/login');
           }
@@ -266,7 +314,7 @@ function TemplatePage() {
   };
 
   const handleFormSubmitSuccess = (msg) => {
-    console.log('✅ Form submit success');
+    console.log('✅ Form submit success:', { message: msg, timestamp: new Date().toISOString() });
     setFormMessage({ type: 'success', text: t('templatePage.formSubmitSuccess') });
     if (user) {
       handleRetry('results');
@@ -274,7 +322,7 @@ function TemplatePage() {
   };
 
   const handleFormSubmitError = (msg) => {
-    console.error('❌ Form submit error:', msg);
+    console.error('❌ Form submit error:', { message: msg, timestamp: new Date().toISOString() });
     setFormMessage({ type: 'danger', text: t('templatePage.formSubmitError') });
   };
 
@@ -329,6 +377,13 @@ function TemplatePage() {
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h2 id="template-title">{template.title}</h2>
         <div>
+          {template.image_url && (
+            <img
+              src={template.image_url}
+              alt={t('templatePage.imageAlt', { title: template.title })}
+              style={{ maxWidth: '200px', marginBottom: '10px' }}
+            />
+          )}
           <Button
             variant={isLiked ? 'danger' : 'outline-primary'}
             onClick={handleLike}
@@ -371,7 +426,7 @@ function TemplatePage() {
       </div>
       <div>
         <ReactMarkdown>{template.description || ''}</ReactMarkdown>
-      </div>
+      </傍
 
       {formMessage && (
         <Alert
@@ -489,6 +544,34 @@ function TemplatePage() {
 
         {activeTab === 'questions' && (
           <div id="questions-tab" role="tabpanel" aria-labelledby="questions-tab">
+            {template.TemplateQuestions && template.TemplateQuestions.length > 0 && (
+              <ListGroup className="mb-3">
+                {template.TemplateQuestions.map((question, idx) => (
+                  <ListGroup.Item
+                    key={question.id}
+                    className={theme === 'dark' ? 'bg-dark text-light border-light' : ''}
+                  >
+                    <p>
+                      <strong>{question.title || t('templatePage.unknownQuestion')}:</strong>{' '}
+                      {t(`templatePage.${question.type}`)} {question.state === 'required' ? t('templatePage.required') : t('templatePage.optional')}
+                    </p>
+                    {question.options && question.options.length > 0 && (
+                      <p>
+                        <strong>{t('templatePage.options')}:</strong> {question.options.join(', ')}
+                      </p>
+                    )}
+                    {question.attachment_url && (
+                      <p>
+                        <strong>{t('templatePage.attachment')}:</strong>{' '}
+                        <a href={question.attachment_url} target="_blank" rel="noopener noreferrer">
+                          {t('templatePage.viewAttachment')}
+                        </a>
+                      </p>
+                    )}
+                  </ListGroup.Item>
+                ))}
+              </ListGroup>
+            )}
             {canFillForm ? (
               <FormFill
                 template={template}
