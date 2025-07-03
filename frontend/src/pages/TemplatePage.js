@@ -426,7 +426,7 @@ function TemplatePage() {
       </div>
       <div>
         <ReactMarkdown>{template.description || ''}</ReactMarkdown>
-      </傍
+      </div>
 
       {formMessage && (
         <Alert
@@ -477,7 +477,7 @@ function TemplatePage() {
         activeKey={activeTab}
         onSelect={(key) => setActiveTab(key)}
         role="tablist"
-        aria-label={t('templatePage.tabsLabel')}
+        aria-label={t('templatePage.tabs_label')}
         id="template-tabs"
       >
         <Nav.Item>
