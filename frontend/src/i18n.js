@@ -143,6 +143,28 @@ const resources = {
         unknownQuestion: 'Unknown Question',
         confirmDelete: 'Are you sure you want to delete this template?',
         retry: 'Retry',
+        // Added for TemplatePage.js
+        formSubmitSuccess: 'Form submitted successfully!',
+        formSubmitError: 'Failed to submit form. Please try again.',
+        rateLimit: 'Too many requests. Please try again later.',
+        forbidden: 'You do not have permission to view results.',
+        serverError: 'Server error. Please try again later.',
+        imageAlt: 'Image for template {title}',
+        options: 'Options',
+        // Question types
+        string: 'Short Text',
+        text: 'Long Text',
+        integer: 'Number',
+        checkbox: 'Checkbox',
+        multiple_choice: 'Multiple Choice',
+        dropdown: 'Dropdown',
+        linear_scale: 'Linear Scale',
+        date: 'Date',
+        time: 'Time',
+        attachment: 'Attachment', // Already present in templateForm and form
+        viewAttachment: 'View Attachment', // Already present
+        required: 'Required', // Already present
+        optional: 'Optional', // Already present
       },
       createTemplate: {
         title: 'Create Template',
@@ -245,7 +267,6 @@ const resources = {
         submittedDetails: 'Submission Details',
         user: 'User: {user}',
         date: 'Date: {date}',
-        // Added for attachment support
         attachment: 'Attachment',
         attachmentSelected: 'Selected: {name}',
         invalidAttachment: 'Invalid attachment type. Use JPEG, PNG, PDF, MP4, DOC, or DOCX.',
@@ -320,7 +341,6 @@ const resources = {
         success: 'Template saved successfully',
         error: 'Failed to save template',
         retry: 'Retry',
-        // Added for attachment and question state support
         attachment: 'Question Attachment',
         attachmentSelected: 'Selected: {name}',
         invalidAttachment: 'Invalid attachment type. Use JPEG, PNG, PDF, MP4, DOC, or DOCX.',
@@ -351,7 +371,6 @@ const resources = {
         themeChanged: 'Theme changed to {theme}',
         retry: 'Retry',
         loading: 'Loading theme...',
-        // Added for consistency
         dismiss: 'Dismiss',
       },
       header: {
@@ -383,12 +402,10 @@ const resources = {
         login: 'Log In',
         register_label: 'Register',
         register: 'Register',
-        // Added for create template button
         createTemplate: 'Create Template',
       },
       app: {
         loading: 'Loading application...',
-        // Added for consistency with App.js
         error: 'Something went wrong',
         errorMessage: 'An unexpected error occurred. Please try again later.',
         loadingAuth: 'Loading authentication...',
@@ -537,6 +554,28 @@ const resources = {
         unknownQuestion: 'Pregunta Desconocida',
         confirmDelete: '¿Seguro que quieres eliminar esta plantilla?',
         retry: 'Reintentar',
+        // Added for TemplatePage.js
+        formSubmitSuccess: '¡Formulario enviado exitosamente!',
+        formSubmitError: 'Error al enviar el formulario. Por favor intenta de nuevo.',
+        rateLimit: 'Demasiadas solicitudes. Por favor intenta de nuevo más tarde.',
+        forbidden: 'No tienes permiso para ver los resultados.',
+        serverError: 'Error del servidor. Por favor intenta de nuevo más tarde.',
+        imageAlt: 'Imagen para la plantilla {title}',
+        options: 'Opciones',
+        // Question types
+        string: 'Texto Corto',
+        text: 'Texto Largo',
+        integer: 'Número',
+        checkbox: 'Casilla de Verificación',
+        multiple_choice: 'Opción Múltiple',
+        dropdown: 'Desplegable',
+        linear_scale: 'Escala Lineal',
+        date: 'Fecha',
+        time: 'Hora',
+        attachment: 'Adjunto', // Already present in templateForm and form
+        viewAttachment: 'Ver Adjunto', // Already present
+        required: 'Obligatorio', // Already present
+        optional: 'Opcional', // Already present
       },
       createTemplate: {
         title: 'Crear Plantilla',
@@ -639,7 +678,6 @@ const resources = {
         submittedDetails: 'Detalles de Envío',
         user: 'Usuario: {user}',
         date: 'Fecha: {date}',
-        // Added for attachment support
         attachment: 'Adjunto',
         attachmentSelected: 'Seleccionado: {name}',
         invalidAttachment: 'Tipo de adjunto no válido. Usa JPEG, PNG, PDF, MP4, DOC o DOCX.',
@@ -714,7 +752,6 @@ const resources = {
         success: 'Plantilla guardada correctamente',
         error: 'Error al guardar la plantilla',
         retry: 'Reintentar',
-        // Added for attachment and question state support
         attachment: 'Adjunto de Pregunta',
         attachmentSelected: 'Seleccionado: {name}',
         invalidAttachment: 'Tipo de adjunto no válido. Usa JPEG, PNG, PDF, MP4, DOC o DOCX.',
@@ -745,7 +782,6 @@ const resources = {
         themeChanged: 'Tema cambiado a {theme}',
         retry: 'Reintentar',
         loading: 'Cargando tema...',
-        // Added for consistency
         dismiss: 'Descartar',
       },
       header: {
@@ -777,12 +813,10 @@ const resources = {
         login: 'Iniciar Sesión',
         register_label: 'Registrarse',
         register: 'Registrarse',
-        // Added for create template button
         createTemplate: 'Crear Plantilla',
       },
       app: {
         loading: 'Cargando la aplicación...',
-        // Added for consistency with App.js
         error: 'Algo salió mal',
         errorMessage: 'Ocurrió un error inesperado. Por favor, intenta de nuevo más tarde.',
         loadingAuth: 'Cargando autenticación...',
@@ -804,7 +838,7 @@ function initializeI18n() {
           escapeValue: false,
         },
         react: {
-          useSuspense: false, // Added for compatibility with lazy-loaded components
+          useSuspense: false,
         },
       })
       .then(() => {
