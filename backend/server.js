@@ -12,13 +12,34 @@ dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
+
+const storage = multer.diskStorage({
+  destination: 'uploads/',
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    cb(null, `${file.fieldname}-${uniqueSuffix}${path.extname(file.originalname)}`);
+  },
+});
+
 const upload = multer({
-  dest: 'uploads/',
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
   fileFilter: (req, file, cb) => {
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+    const allowedTypes = [
+      'image/jpeg',
+      'image/png',
+      'image/gif',
+      'application/pdf',
+      'video/mp4',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ];
     if (!allowedTypes.includes(file.mimetype)) {
-      return cb(new Error('Invalid file type. Only JPEG, PNG, or GIF allowed.'));
+      console.error(`❌ Multer: Invalid file type ${file.mimetype}`, {
+        field: file.fieldname,
+        timestamp: new Date().toISOString(),
+      });
+      return cb(new Error('Invalid file type. Only JPEG, PNG, GIF, PDF, MP4, DOC, or DOCX allowed.'));
     }
     cb(null, true);
   },
@@ -66,7 +87,10 @@ app.get('/api/health', (req, res) => {
 
 // API Routes
 app.use('/api/auth', require('./routes/authRoutes'));
-app.use('/api/templates', upload.single('image'), require('./routes/templateRoutes'));
+app.use('/api/templates', upload.fields([
+  { name: 'image', maxCount: 1 },
+  { name: 'questionAttachments', maxCount: 10 }, // Adjust maxCount as needed
+]), require('./routes/templateRoutes'));
 app.use('/api/forms', require('./routes/formRoutes'));
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/comments', require('./routes/commentRoutes'));
@@ -95,7 +119,7 @@ app.use((err, req, res, next) => {
   res.status(500).json({ success: false, message: 'Server error', error: err.message });
 });
 
-// Start server (relying on migrations for schema management)
+// Start server
 const PORT = process.env.PORT || 5000;
 const startServer = async () => {
   try {
