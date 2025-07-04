@@ -118,13 +118,13 @@ const createTemplate = [
     }
 
     // Add explicit check for req.user and req.user.id
-    if (!req.user || !req.user.id || isNaN(req.user.id)) {
+    if (!req.user || !req.user.id || isNaN(req.user.id) || req.user.id <= 0) {
       console.log(`❌ CreateTemplate failed: Invalid or missing user authentication`, {
         timestamp: new Date().toISOString(),
         user: req.user,
         headers: req.headers.authorization ? 'Bearer token present' : 'No Bearer token',
       });
-      return res.status(401).json({ success: false, message: 'User not authenticated' });
+      return res.status(401).json({ success: false, message: 'User not authenticated or invalid user ID' });
     }
 
     const transaction = await Template.sequelize.transaction();
@@ -167,7 +167,7 @@ const createTemplate = [
       });
 
       // Validate topic_id
-      if (isNaN(parsed_topic_id)) {
+      if (isNaN(parsed_topic_id) || parsed_topic_id <= 0) {
         console.log(`❌ CreateTemplate failed: Topic ID ${topic_id} is not a valid integer`, {
           timestamp: new Date().toISOString(),
           topic_id,
@@ -176,7 +176,7 @@ const createTemplate = [
           existing_topic_ids: (await Topic.findAll({ attributes: ['id'], transaction })).map(t => t.id),
         });
         await transaction.rollback();
-        return res.status(400).json({ success: false, message: 'Topic ID must be a valid integer' });
+        return res.status(400).json({ success: false, message: 'Topic ID must be a valid positive integer' });
       }
       const topic = await Topic.findByPk(parsed_topic_id, {
         attributes: ['id', 'name'],
