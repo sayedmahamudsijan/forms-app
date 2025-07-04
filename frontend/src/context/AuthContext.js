@@ -25,9 +25,19 @@ export const AuthProvider = ({ children }) => {
     try {
       const decoded = jwtDecode(token);
       const now = Date.now() / 1000;
+      if (!decoded.id || !Number.isInteger(decoded.id) || decoded.id <= 0) {
+        console.warn('⚠️ Token validation failed: Invalid user ID', {
+          decoded: { id: decoded.id, email: decoded.email },
+          timestamp: new Date().toISOString(),
+        });
+        return false;
+      }
       return decoded.exp > now;
     } catch (err) {
-      console.warn('⚠️ Token validation failed:', { message: err.message, timestamp: new Date().toISOString() });
+      console.warn('⚠️ Token validation failed:', {
+        message: err.message,
+        timestamp: new Date().toISOString(),
+      });
       return false;
     }
   };
@@ -47,14 +57,16 @@ export const AuthProvider = ({ children }) => {
       if (response.data.success && response.data.token && isValidToken(response.data.token)) {
         localStorage.setItem('token', response.data.token);
         axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
-        await fetchUser();
-        setError(null);
         refreshRetryCount.current = 0;
         return { success: true, token: response.data.token };
       }
       throw new Error('Invalid refresh token response');
     } catch (err) {
-      console.error('❌ Failed to refresh token:', { status: err.response?.status, timestamp: new Date().toISOString() });
+      console.error('❌ Failed to refresh token:', {
+        status: err.response?.status,
+        message: err.message,
+        timestamp: new Date().toISOString(),
+      });
       if (err.response?.status === 429 && refreshRetryCount.current < maxRetries) {
         refreshRetryCount.current += 1;
         console.log(`✅ Retrying token refresh, attempt ${refreshRetryCount.current}`);
@@ -75,14 +87,26 @@ export const AuthProvider = ({ children }) => {
 
   const fetchUser = useCallback(async () => {
     const token = getToken();
-    if (!token || !isValidToken(token)) {
-      console.warn(`⚠️ Invalid or missing token, timestamp=${new Date().toISOString()}`);
-      localStorage.removeItem('token');
-      delete axios.defaults.headers.common['Authorization'];
+    if (!token) {
+      console.warn(`⚠️ No token found, timestamp=${new Date().toISOString()}`);
       setUser(null);
       setLoading(false);
       setError(null);
       return;
+    }
+
+    if (!isValidToken(token)) {
+      console.warn(`⚠️ Token invalid or expired, attempting refresh, timestamp=${new Date().toISOString()}`);
+      const refreshResult = await refreshToken();
+      if (!refreshResult.success) {
+        console.warn(`⚠️ Token refresh failed, clearing token, timestamp=${new Date().toISOString()}`);
+        localStorage.removeItem('token');
+        delete axios.defaults.headers.common['Authorization'];
+        setUser(null);
+        setLoading(false);
+        setError(refreshResult.message);
+        return;
+      }
     }
 
     try {
@@ -91,7 +115,7 @@ export const AuthProvider = ({ children }) => {
       const headers = getAuthHeaders();
       console.log(`✅ Fetching user data, token=${token.substring(0, 10)}..., timestamp=${new Date().toISOString()}`);
       const res = await axios.get(`${API_BASE}/api/auth/me`, { headers });
-      console.log('✅ User fetched:', res.data.user?.id);
+      console.log('✅ User fetched:', { userId: res.data.user?.id, timestamp: new Date().toISOString() });
       if (res.data.success && res.data.user) {
         setUser(res.data.user);
         setError(null);
@@ -100,7 +124,12 @@ export const AuthProvider = ({ children }) => {
         throw new Error('No user data');
       }
     } catch (err) {
-      console.error('❌ Failed to fetch user:', { status: err.response?.status, timestamp: new Date().toISOString() });
+      console.error('❌ Failed to fetch user:', {
+        status: err.response?.status,
+        message: err.message,
+        userId: jwtDecode(getToken())?.id,
+        timestamp: new Date().toISOString(),
+      });
       if (err.response?.status === 429 && fetchRetryCount.current < maxRetries) {
         fetchRetryCount.current += 1;
         console.log(`✅ Retrying user fetch, attempt ${fetchRetryCount.current}`);
@@ -119,19 +148,39 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, [t, getAuthHeaders]);
+  }, [t, getAuthHeaders, refreshToken]);
 
   useEffect(() => {
+    // Set up axios interceptor for 401 errors
+    const interceptor = axios.interceptors.response.use(
+      response => response,
+      async error => {
+        const originalRequest = error.config;
+        if (error.response?.status === 401 && !originalRequest._retry) {
+          originalRequest._retry = true;
+          console.log(`✅ Interceptor caught 401, attempting token refresh, timestamp=${new Date().toISOString()}`);
+          const refreshResult = await refreshToken();
+          if (refreshResult.success) {
+            originalRequest.headers['Authorization'] = `Bearer ${refreshResult.token}`;
+            return axios(originalRequest);
+          }
+        }
+        return Promise.reject(error);
+      }
+    );
+
     fetchUser();
-  }, [fetchUser]);
+
+    return () => axios.interceptors.response.eject(interceptor);
+  }, [fetchUser, refreshToken]);
 
   const login = async (email, password) => {
     setLoginLoading(true);
     setError(null);
     try {
-      console.log(`✅ Attempting login, timestamp=${new Date().toISOString()}`);
+      console.log(`✅ Attempting login for ${email}, timestamp=${new Date().toISOString()}`);
       const res = await axios.post(`${API_BASE}/api/auth/login`, { email, password });
-      console.log('✅ Login successful');
+      console.log('✅ Login successful', { userId: jwtDecode(res.data.token)?.id, timestamp: new Date().toISOString() });
       if (res.data.success && res.data.token && isValidToken(res.data.token)) {
         localStorage.setItem('token', res.data.token);
         axios.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
@@ -143,7 +192,12 @@ export const AuthProvider = ({ children }) => {
       setLoginLoading(false);
       return { success: false, message: t('auth.noToken') };
     } catch (err) {
-      console.error('❌ Login error:', { status: err.response?.status, timestamp: new Date().toISOString() });
+      console.error('❌ Login error:', {
+        status: err.response?.status,
+        message: err.message,
+        email,
+        timestamp: new Date().toISOString(),
+      });
       if (err.response?.status === 429 && loginRetryCount.current < maxRetries) {
         loginRetryCount.current += 1;
         console.log(`✅ Retrying login, attempt ${loginRetryCount.current}`);
@@ -164,9 +218,9 @@ export const AuthProvider = ({ children }) => {
     setRegisterLoading(true);
     setError(null);
     try {
-      console.log(`✅ Attempting register, timestamp=${new Date().toISOString()}`);
+      console.log(`✅ Attempting register for ${email}, timestamp=${new Date().toISOString()}`);
       const res = await axios.post(`${API_BASE}/api/auth/register`, { name, email, password });
-      console.log('✅ Register successful');
+      console.log('✅ Register successful', { userId: jwtDecode(res.data.token)?.id, timestamp: new Date().toISOString() });
       if (res.data.success && res.data.token && isValidToken(res.data.token)) {
         localStorage.setItem('token', res.data.token);
         axios.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
@@ -178,7 +232,12 @@ export const AuthProvider = ({ children }) => {
       setRegisterLoading(false);
       return { success: false, message: t('auth.noToken') };
     } catch (err) {
-      console.error('❌ Register error:', { status: err.response?.status, timestamp: new Date().toISOString() });
+      console.error('❌ Register error:', {
+        status: err.response?.status,
+        message: err.message,
+        email,
+        timestamp: new Date().toISOString(),
+      });
       if (err.response?.status === 429 && registerRetryCount.current < maxRetries) {
         registerRetryCount.current += 1;
         console.log(`✅ Retrying register, attempt ${registerRetryCount.current}`);
@@ -204,11 +263,11 @@ export const AuthProvider = ({ children }) => {
         setError(t('auth.unauthorized'));
         return { success: false, message: t('auth.unauthorized') };
       }
-      console.log(`✅ Updating user, timestamp=${new Date().toISOString()}`);
+      console.log(`✅ Updating user, userId=${jwtDecode(token)?.id}, timestamp=${new Date().toISOString()}`);
       const res = await axios.put(`${API_BASE}/api/auth/me`, data, {
         headers: getAuthHeaders(),
       });
-      console.log('✅ User updated:', res.data.user?.id);
+      console.log('✅ User updated:', { userId: res.data.user?.id, timestamp: new Date().toISOString() });
       setUser(res.data.user);
       if (res.data.token && isValidToken(res.data.token)) {
         localStorage.setItem('token', res.data.token);
@@ -217,7 +276,12 @@ export const AuthProvider = ({ children }) => {
       setError(null);
       return { success: true, message: t('auth.updateSuccess') };
     } catch (err) {
-      console.error('❌ Update user error:', { status: err.response?.status, timestamp: new Date().toISOString() });
+      console.error('❌ Update user error:', {
+        status: err.response?.status,
+        message: err.message,
+        userId: jwtDecode(getToken())?.id,
+        timestamp: new Date().toISOString(),
+      });
       setError(
         err.response?.status === 400 ? err.response?.data?.message || t('auth.updateFailed') :
         err.response?.status === 429 ? t('auth.rateLimit') :
@@ -228,7 +292,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    console.log(`✅ Logging out user, timestamp=${new Date().toISOString()}`);
+    console.log(`✅ Logging out user, userId=${user?.id || 'unknown'}, timestamp=${new Date().toISOString()}`);
     localStorage.removeItem('token');
     delete axios.defaults.headers.common['Authorization'];
     setUser(null);
