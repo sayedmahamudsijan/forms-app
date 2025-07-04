@@ -127,6 +127,7 @@ const createTemplate = [
       if (!user) {
         console.log(`❌ CreateTemplate failed: User ID ${user_id} not found`, {
           timestamp: new Date().toISOString(),
+          user_id,
         });
         await transaction.rollback();
         return res.status(400).json({ success: false, message: 'Invalid user ID' });
@@ -136,6 +137,7 @@ const createTemplate = [
       if (!topic) {
         console.log(`❌ CreateTemplate failed: Topic ID ${topic_id} not found for user ${user_id}`, {
           timestamp: new Date().toISOString(),
+          topic_id,
         });
         await transaction.rollback();
         return res.status(400).json({ success: false, message: 'Invalid topic ID' });
@@ -149,6 +151,7 @@ const createTemplate = [
         if (!allowedTypes.includes(image.mimetype)) {
           console.log(`❌ CreateTemplate failed: Invalid image type for user ${user_id}`, {
             timestamp: new Date().toISOString(),
+            mimetype: image.mimetype,
           });
           await transaction.rollback();
           return res.status(400).json({ success: false, message: 'Invalid image type. Use JPEG, PNG, or GIF.' });
@@ -156,6 +159,7 @@ const createTemplate = [
         if (image.size > 5 * 1024 * 1024) {
           console.log(`❌ CreateTemplate failed: Image size too large for user ${user_id}`, {
             timestamp: new Date().toISOString(),
+            size: image.size,
           });
           await transaction.rollback();
           return res.status(400).json({ success: false, message: 'Image size must be less than 5MB.' });
@@ -165,6 +169,7 @@ const createTemplate = [
         if (!uploadResult.success) {
           console.log(`❌ CreateTemplate failed: Image upload failed for user ${user_id}`, {
             timestamp: new Date().toISOString(),
+            error: uploadResult.message,
           });
           await transaction.rollback();
           return res.status(400).json({ success: false, message: uploadResult.message });
@@ -184,6 +189,7 @@ const createTemplate = [
         if (!allowedAttachmentTypes.includes(attachment.mimetype)) {
           console.log(`❌ CreateTemplate failed: Invalid attachment type for question ${i}, user ${user_id}`, {
             timestamp: new Date().toISOString(),
+            mimetype: attachment.mimetype,
           });
           await transaction.rollback();
           return res.status(400).json({ success: false, message: 'Invalid attachment type. Use JPEG, PNG, PDF, MP4, DOC, or DOCX.' });
@@ -191,6 +197,7 @@ const createTemplate = [
         if (attachment.size > 10 * 1024 * 1024) {
           console.log(`❌ CreateTemplate failed: Attachment size too large for question ${i}, user ${user_id}`, {
             timestamp: new Date().toISOString(),
+            size: attachment.size,
           });
           await transaction.rollback();
           return res.status(400).json({ success: false, message: 'Attachment size must be less than 10MB.' });
@@ -199,6 +206,7 @@ const createTemplate = [
         if (!uploadResult.success) {
           console.log(`❌ CreateTemplate failed: Attachment upload failed for question ${i}, user ${user_id}`, {
             timestamp: new Date().toISOString(),
+            error: uploadResult.message,
           });
           await transaction.rollback();
           return res.status(400).json({ success: false, message: uploadResult.message });
@@ -220,11 +228,11 @@ const createTemplate = [
         questions.map((q, index) => ({
           template_id: template.id,
           type: q.type,
+          title: q.title,
           description: q.description,
           is_visible_in_results: q.is_visible_in_results ?? true,
           order: index,
-          state: q.state ?? 'optional',
-          title: q.title,
+          is_required: q.state === 'required',
           options: ['select', 'multiple_choice', 'dropdown'].includes(q.type) ? q.options : null,
           attachment_url: attachmentUrls[index] || null,
           min: q.type === 'linear_scale' ? q.min : null,
@@ -261,6 +269,7 @@ const createTemplate = [
           console.log(`❌ CreateTemplate failed: Invalid user IDs in permissions for user ${user_id}`, {
             timestamp: new Date().toISOString(),
             invalid_ids: permissions.filter(id => !permissionUsers.some(u => u.id === id)),
+            permissions,
           });
           await transaction.rollback();
           return res.status(400).json({ success: false, message: 'Invalid user IDs in permissions' });
@@ -277,7 +286,11 @@ const createTemplate = [
           { model: User, as: 'User', attributes: ['id', 'name'], required: false },
           { model: TemplateTag, as: 'TemplateTags', include: [{ model: Tag, as: 'Tag', attributes: ['id', 'name'] }], required: false },
           { model: TemplatePermission, as: 'TemplatePermissions', required: false },
-          { model: TemplateQuestion, as: 'TemplateQuestions', attributes: ['id', 'type', 'title', 'description', 'is_visible_in_results', 'order', 'state', 'options', 'attachment_url', 'min', 'max', 'min_label', 'max_label'] },
+          { 
+            model: TemplateQuestion, 
+            as: 'TemplateQuestions', 
+            attributes: ['id', 'type', 'title', 'description', 'is_visible_in_results', 'order', 'is_required', 'options', 'attachment_url', 'min', 'max', 'min_label', 'max_label'] 
+          },
           { model: Topic, as: 'Topic', attributes: ['id', 'name'], required: false },
         ],
         transaction
@@ -286,6 +299,9 @@ const createTemplate = [
       await transaction.commit();
       console.log(`✅ Template created: ID ${template.id}, Title: ${title}, User ID ${user_id}`, {
         timestamp: new Date().toISOString(),
+        topic_id,
+        is_public,
+        permissions,
       });
       return res.status(201).json({ success: true, template: createdTemplate, message: 'Template created successfully' });
     } catch (error) {
@@ -311,6 +327,7 @@ const updateTemplate = [
     if (!errors.isEmpty()) {
       console.log(`❌ UpdateTemplate validation failed: ${JSON.stringify(errors.array())}`, {
         timestamp: new Date().toISOString(),
+        body: req.body,
       });
       return res.status(400).json({ success: false, errors: errors.array() });
     }
@@ -326,6 +343,7 @@ const updateTemplate = [
       if (!user) {
         console.log(`❌ UpdateTemplate failed: User ID ${user_id} not found`, {
           timestamp: new Date().toISOString(),
+          user_id,
         });
         await transaction.rollback();
         return res.status(400).json({ success: false, message: 'Invalid user ID' });
@@ -335,6 +353,7 @@ const updateTemplate = [
       if (!template || (template.user_id !== user_id && !req.user.is_admin)) {
         console.log(`❌ UpdateTemplate failed: Unauthorized for template ${id}, user ${user_id}`, {
           timestamp: new Date().toISOString(),
+          template_id: id,
         });
         await transaction.rollback();
         return res.status(403).json({ success: false, message: 'Unauthorized' });
@@ -344,6 +363,7 @@ const updateTemplate = [
       if (!topic) {
         console.log(`❌ UpdateTemplate failed: Topic ID ${topic_id} not found for user ${user_id}`, {
           timestamp: new Date().toISOString(),
+          topic_id,
         });
         await transaction.rollback();
         return res.status(400).json({ success: false, message: 'Invalid topic ID' });
@@ -357,6 +377,7 @@ const updateTemplate = [
         if (!allowedTypes.includes(image.mimetype)) {
           console.log(`❌ UpdateTemplate failed: Invalid image type for template ${id}, user ${user_id}`, {
             timestamp: new Date().toISOString(),
+            mimetype: image.mimetype,
           });
           await transaction.rollback();
           return res.status(400).json({ success: false, message: 'Invalid image type. Use JPEG, PNG, or GIF.' });
@@ -364,6 +385,7 @@ const updateTemplate = [
         if (image.size > 5 * 1024 * 1024) {
           console.log(`❌ UpdateTemplate failed: Image size too large for template ${id}, user ${user_id}`, {
             timestamp: new Date().toISOString(),
+            size: image.size,
           });
           await transaction.rollback();
           return res.status(400).json({ success: false, message: 'Image size must be less than 5MB.' });
@@ -373,6 +395,7 @@ const updateTemplate = [
         if (!uploadResult.success) {
           console.log(`❌ UpdateTemplate failed: Image upload failed for template ${id}, user ${user_id}`, {
             timestamp: new Date().toISOString(),
+            error: uploadResult.message,
           });
           await transaction.rollback();
           return res.status(400).json({ success: false, message: uploadResult.message });
@@ -392,6 +415,7 @@ const updateTemplate = [
         if (!allowedAttachmentTypes.includes(attachment.mimetype)) {
           console.log(`❌ UpdateTemplate failed: Invalid attachment type for question ${i}, user ${user_id}`, {
             timestamp: new Date().toISOString(),
+            mimetype: attachment.mimetype,
           });
           await transaction.rollback();
           return res.status(400).json({ success: false, message: 'Invalid attachment type. Use JPEG, PNG, PDF, MP4, DOC, or DOCX.' });
@@ -399,6 +423,7 @@ const updateTemplate = [
         if (attachment.size > 10 * 1024 * 1024) {
           console.log(`❌ UpdateTemplate failed: Attachment size too large for question ${i}, user ${user_id}`, {
             timestamp: new Date().toISOString(),
+            size: attachment.size,
           });
           await transaction.rollback();
           return res.status(400).json({ success: false, message: 'Attachment size must be less than 10MB.' });
@@ -407,6 +432,7 @@ const updateTemplate = [
         if (!uploadResult.success) {
           console.log(`❌ UpdateTemplate failed: Attachment upload failed for question ${i}, user ${user_id}`, {
             timestamp: new Date().toISOString(),
+            error: uploadResult.message,
           });
           await transaction.rollback();
           return res.status(400).json({ success: false, message: uploadResult.message });
@@ -435,7 +461,7 @@ const updateTemplate = [
           description: q.description,
           is_visible_in_results: q.is_visible_in_results ?? true,
           order: index,
-          state: q.state ?? 'optional',
+          is_required: q.state === 'required',
           options: ['select', 'multiple_choice', 'dropdown'].includes(q.type) ? q.options : null,
           attachment_url: attachmentUrls[index] || null,
           min: q.type === 'linear_scale' ? q.min : null,
@@ -470,6 +496,7 @@ const updateTemplate = [
           console.log(`❌ UpdateTemplate failed: Invalid user IDs in permissions for user ${user_id}`, {
             timestamp: new Date().toISOString(),
             invalid_ids: permissions.filter(id => !permissionUsers.some(u => u.id === id)),
+            permissions,
           });
           await transaction.rollback();
           return res.status(400).json({ success: false, message: 'Invalid user IDs in permissions' });
@@ -486,7 +513,11 @@ const updateTemplate = [
           { model: User, as: 'User', attributes: ['id', 'name'], required: false },
           { model: TemplateTag, as: 'TemplateTags', include: [{ model: Tag, as: 'Tag', attributes: ['id', 'name'] }], required: false },
           { model: TemplatePermission, as: 'TemplatePermissions', required: false },
-          { model: TemplateQuestion, as: 'TemplateQuestions', attributes: ['id', 'type', 'title', 'description', 'is_visible_in_results', 'order', 'state', 'options', 'attachment_url', 'min', 'max', 'min_label', 'max_label'] },
+          { 
+            model: TemplateQuestion, 
+            as: 'TemplateQuestions', 
+            attributes: ['id', 'type', 'title', 'description', 'is_visible_in_results', 'order', 'is_required', 'options', 'attachment_url', 'min', 'max', 'min_label', 'max_label'] 
+          },
           { model: Topic, as: 'Topic', attributes: ['id', 'name'], required: false },
         ],
         transaction
@@ -495,6 +526,9 @@ const updateTemplate = [
       await transaction.commit();
       console.log(`✅ Template updated: ID ${id}, Title: ${title}, User ID ${user_id}`, {
         timestamp: new Date().toISOString(),
+        topic_id,
+        is_public,
+        permissions,
       });
       return res.json({ success: true, template: updatedTemplate, message: 'Template updated successfully' });
     } catch (error) {
@@ -502,6 +536,7 @@ const updateTemplate = [
       console.error('❌ Error updating template:', {
         template_id: req.params.id,
         user_id: req.user.id,
+        topic_id: req.body.topic_id,
         error: error.message,
         stack: error.stack,
         body: req.body,
@@ -659,6 +694,7 @@ const deleteTemplate = [
       if (!template || (template.user_id !== user_id && !req.user.is_admin)) {
         console.log(`❌ DeleteTemplate failed: Unauthorized for template ${id}, user ${user_id}`, {
           timestamp: new Date().toISOString(),
+          template_id: id,
         });
         return res.status(403).json({ success: false, message: 'Unauthorized' });
       }
@@ -701,7 +737,11 @@ const getTemplate = [
           { model: User, as: 'User', attributes: ['id', 'name'], required: false },
           { model: TemplateTag, as: 'TemplateTags', include: [{ model: Tag, as: 'Tag', attributes: ['id', 'name'] }], required: false },
           { model: TemplatePermission, as: 'TemplatePermissions', required: false },
-          { model: TemplateQuestion, as: 'TemplateQuestions', attributes: ['id', 'type', 'title', 'description', 'is_visible_in_results', 'order', 'state', 'options', 'attachment_url', 'min', 'max', 'min_label', 'max_label'] },
+          { 
+            model: TemplateQuestion, 
+            as: 'TemplateQuestions', 
+            attributes: ['id', 'type', 'title', 'description', 'is_visible_in_results', 'order', 'is_required', 'options', 'attachment_url', 'min', 'max', 'min_label', 'max_label'] 
+          },
           { model: Topic, as: 'Topic', attributes: ['id', 'name'], required: false },
         ],
       });
@@ -709,6 +749,7 @@ const getTemplate = [
       if (!template) {
         console.log(`❌ GetTemplate failed: Template ${id} not found for user ${user_id || 'unauthenticated'}`, {
           timestamp: new Date().toISOString(),
+          template_id: id,
         });
         return res.status(404).json({ success: false, message: 'Template not found' });
       }
@@ -719,6 +760,7 @@ const getTemplate = [
       ) {
         console.log(`❌ GetTemplate failed: Access denied for template ${id}, user ${user_id || 'unauthenticated'}`, {
           timestamp: new Date().toISOString(),
+          template_id: id,
         });
         return res.status(403).json({ success: false, message: 'Access denied' });
       }
@@ -765,6 +807,7 @@ const getResults = [
       if (!template) {
         console.log(`❌ GetResults failed: Template ${id} not found for user ${user_id}`, {
           timestamp: new Date().toISOString(),
+          template_id: id,
         });
         return res.status(404).json({ success: false, message: 'Template not found' });
       }
@@ -772,6 +815,7 @@ const getResults = [
       if (!template.is_public && template.user_id !== user_id && !req.user.is_admin) {
         console.log(`❌ GetResults failed: Access denied for template ${id}, user ${user_id}`, {
           timestamp: new Date().toISOString(),
+          template_id: id,
         });
         return res.status(403).json({ success: false, message: 'Forbidden: You do not have permission to view results' });
       }
