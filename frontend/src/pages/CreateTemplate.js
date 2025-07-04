@@ -218,95 +218,99 @@ function CreateTemplate() {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!user) {
-      setSubmitError(t('createTemplate.loginRequired'));
-      return;
+  e.preventDefault();
+  if (!user) {
+    setSubmitError(t('createTemplate.loginRequired'));
+    return;
+  }
+  const newErrors = {};
+  if (!formData.title.trim()) newErrors.title = t('createTemplate.titleRequired');
+  if (!formData.topic_id) newErrors.topic_id = t('createTemplate.topicRequired');
+  if (formData.image && formData.image.size > 5 * 1024 * 1024) newErrors.image = t('createTemplate.imageTooLarge');
+  formData.questions.forEach((q, i) => {
+    if (!q.title.trim()) newErrors[`question${i}`] = t('createTemplate.questionsRequired');
+    if (q.type === 'select' && (!q.options || q.options.length < 2)) {
+      newErrors[`question${i}`] = t('createTemplate.optionsRequired');
     }
-    const newErrors = {};
-    if (!formData.title.trim()) newErrors.title = t('createTemplate.titleRequired');
-    if (!formData.topic_id) newErrors.topic_id = t('createTemplate.topicRequired');
-    if (formData.image && formData.image.size > 5 * 1024 * 1024) newErrors.image = t('createTemplate.imageTooLarge');
+    if (q.attachment && q.attachment.size > 10 * 1024 * 1024) {
+      newErrors[`questionAttachment${i}`] = t('createTemplate.attachmentTooLarge');
+    }
+  });
+  if (Object.keys(newErrors).length > 0) {
+    setErrors(newErrors);
+    setServerErrors([]);
+    return;
+  }
+  setIsSubmitting(true);
+  setServerErrors([]);
+  try {
+    const token = getToken();
+    const formDataToSend = new FormData();
+    formDataToSend.append('title', formData.title);
+    formDataToSend.append('description', formData.description || '');
+    formDataToSend.append('topic_id', formData.topic_id);
+    formDataToSend.append('is_public', formData.is_public.toString());
+    // Send tags and permissions as JSON strings
+    formDataToSend.append('tags', JSON.stringify(formData.tags || []));
+    formDataToSend.append('permissions', JSON.stringify(formData.permissions || []));
     formData.questions.forEach((q, i) => {
-      if (!q.title.trim()) newErrors[`question${i}`] = t('createTemplate.questionsRequired');
-      if (q.type === 'select' && (!q.options || q.options.length < 2)) {
-        newErrors[`question${i}`] = t('createTemplate.optionsRequired');
-      }
-      if (q.attachment && q.attachment.size > 10 * 1024 * 1024) {
-        newErrors[`questionAttachment${i}`] = t('createTemplate.attachmentTooLarge');
+      formDataToSend.append(`questions[${i}][title]`, q.title);
+      formDataToSend.append(`questions[${i}][type]`, q.type);
+      formDataToSend.append(`questions[${i}][state]`, q.state);
+      formDataToSend.append(`questions[${i}][is_visible_in_results]`, q.is_visible_in_results.toString());
+      (q.options || []).forEach(opt => formDataToSend.append(`questions[${i}][options][]`, opt));
+      if (q.attachment) {
+        formDataToSend.append(`questionAttachments`, q.attachment);
       }
     });
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      setServerErrors([]);
-      return;
-    }
-    setIsSubmitting(true);
-    setServerErrors([]);
-    try {
-      const token = getToken();
-      const formDataToSend = new FormData();
-      formDataToSend.append('title', formData.title);
-      formDataToSend.append('description', formData.description || '');
-      formDataToSend.append('topic_id', formData.topic_id);
-      formDataToSend.append('is_public', formData.is_public.toString());
-      // Ensure tags and permissions are arrays
-      (formData.tags || []).forEach(tag => formDataToSend.append('tags[]', tag));
-      (formData.permissions || []).forEach(perm => formDataToSend.append('permissions[]', perm));
-      formData.questions.forEach((q, i) => {
-        formDataToSend.append(`questions[${i}][title]`, q.title);
-        formDataToSend.append(`questions[${i}][type]`, q.type);
-        formDataToSend.append(`questions[${i}][state]`, q.state);
-        formDataToSend.append(`questions[${i}][is_visible_in_results]`, q.is_visible_in_results.toString());
-        (q.options || []).forEach(opt => formDataToSend.append(`questions[${i}][options][]`, opt));
-        if (q.attachment) {
-          formDataToSend.append(`questionAttachments`, q.attachment);
-        }
-      });
-      if (formData.image) formDataToSend.append('image', formData.image);
+    if (formData.image) formDataToSend.append('image', formData.image);
 
-      const formDataEntries = {};
-      for (const [key, value] of formDataToSend.entries()) {
-        formDataEntries[key] = value instanceof File ? `File: ${value.name}` : value;
-      }
-      console.log('✅ Submitting template:', {
-        ...formDataEntries,
-        timestamp: new Date().toISOString(),
-      });
-
-      const response = await axios.post(`${API_BASE}/api/templates`, formDataToSend, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-      console.log('✅ Template created:', response.data);
-      navigate(`/templates/${response.data.template.id}`);
-    } catch (err) {
-      console.error('❌ Error creating template:', {
-        status: err.response?.status,
-        message: err.response?.data?.message,
-        errors: err.response?.data?.errors,
-        timestamp: new Date().toISOString(),
-      });
-      if (err.response?.data?.errors?.length) {
-        setServerErrors(err.response.data.errors.map(e => ({
-          path: e.path,
-          msg: t(`createTemplate.${e.path}Error`, { defaultValue: e.msg }),
-        })));
-      } else {
-        setSubmitError(
-          err.response?.status === 400 ? t('createTemplate.invalidData') :
-          err.response?.status === 401 ? t('createTemplate.unauthorized') :
-          err.response?.status === 403 ? t('createTemplate.forbidden') :
-          err.response?.status === 429 ? t('createTemplate.rateLimit') :
-          err.response?.data?.message || t('createTemplate.submitError')
-        );
-      }
-    } finally {
-      setIsSubmitting(false);
+    const formDataEntries = {};
+    for (const [key, value] of formDataToSend.entries()) {
+      formDataEntries[key] = value instanceof File ? `File: ${value.name}` : value;
     }
-  };
+    console.log('✅ Submitting template:', {
+      formData: formDataEntries,
+      timestamp: new Date().toISOString(),
+    });
+
+    const response = await axios.post(`${API_BASE}/api/templates`, formDataToSend, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    console.log('✅ Template created:', {
+      templateId: response.data.template.id,
+      title: response.data.template.title,
+      timestamp: new Date().toISOString(),
+    });
+    navigate(`/templates/${response.data.template.id}`);
+  } catch (err) {
+    console.error('❌ Error creating template:', {
+      status: err.response?.status,
+      message: err.response?.data?.message,
+      errors: err.response?.data?.errors,
+      timestamp: new Date().toISOString(),
+    });
+    if (err.response?.data?.errors?.length) {
+      setServerErrors(err.response.data.errors.map(e => ({
+        path: e.path,
+        msg: t(`createTemplate.${e.path}Error`, { defaultValue: e.msg }),
+      })));
+    } else {
+      setSubmitError(
+        err.response?.status === 400 ? t('createTemplate.invalidData') :
+        err.response?.status === 401 ? t('createTemplate.unauthorized') :
+        err.response?.status === 403 ? t('createTemplate.forbidden') :
+        err.response?.status === 429 ? t('createTemplate.rateLimit') :
+        err.response?.data?.message || t('createTemplate.submitError')
+      );
+    }
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   if (!user) {
     return (
