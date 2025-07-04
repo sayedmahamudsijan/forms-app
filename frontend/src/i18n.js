@@ -11,6 +11,7 @@ const resources = {
         searchLabel: 'Search Templates',
         searchPlaceholder: 'Search templates by keyword or tag',
         searchButton: 'Search',
+        search: 'Search', // Added for Home.js search button
         latestTemplates: 'Latest Templates',
         topTemplates: 'Top Templates',
         myTemplates: 'My Templates',
@@ -21,9 +22,14 @@ const resources = {
         by: 'By',
         unknown: 'Unknown',
         viewTemplate: 'View template {title}',
+        viewDisabled: 'View (Disabled)', // Added for Home.js disabled view button
         templateImage: 'Image for template {title}',
         loadError: 'Failed to load templates',
         unauthorized: 'Please log in to access your templates',
+        forbidden: 'You do not have permission to view these templates', // Added for Home.js
+        serverError: 'Server error occurred. Please try again later', // Added for Home.js
+        deleteError: 'Failed to delete template. Please try again', // Added for Home.js
+        invalidTemplateId: 'Invalid template ID', // Added for Home.js
         retry: 'Retry',
       },
       login: {
@@ -138,20 +144,19 @@ const resources = {
         edit: 'Edit',
         delete: 'Delete',
         noResults: 'No form submissions yet',
+        noQuestions: 'No questions available for this template', // Added for TemplatePage.js
         resultsList: 'List of form submissions',
         submittedOn: 'Submitted on {date}',
         unknownQuestion: 'Unknown Question',
         confirmDelete: 'Are you sure you want to delete this template?',
         retry: 'Retry',
-        // Added for TemplatePage.js
         formSubmitSuccess: 'Form submitted successfully!',
         formSubmitError: 'Failed to submit form. Please try again.',
         rateLimit: 'Too many requests. Please try again later.',
-        forbidden: 'You do not have permission to view results.',
+        forbidden: 'You do not have permission to view this template or its results', // Updated for TemplatePage.js
         serverError: 'Server error. Please try again later.',
         imageAlt: 'Image for template {title}',
         options: 'Options',
-        // Question types
         string: 'Short Text',
         text: 'Long Text',
         integer: 'Number',
@@ -161,10 +166,10 @@ const resources = {
         linear_scale: 'Linear Scale',
         date: 'Date',
         time: 'Time',
-        attachment: 'Attachment', // Already present in templateForm and form
-        viewAttachment: 'View Attachment', // Already present
-        required: 'Required', // Already present
-        optional: 'Optional', // Already present
+        attachment: 'Attachment',
+        viewAttachment: 'View Attachment',
+        required: 'Required',
+        optional: 'Optional',
       },
       createTemplate: {
         title: 'Create Template',
@@ -195,6 +200,7 @@ const resources = {
         time: 'Time',
         questionTitle: 'Enter question title',
         required: 'Required',
+        optional: 'Optional',
         optionsLabel: 'Options (comma-separated)',
         optionsPlaceholder: 'e.g., Option 1, Option 2, Option 3',
         minLabel: 'Minimum Value',
@@ -220,6 +226,14 @@ const resources = {
         invalidData: 'Invalid form data provided',
         submitError: 'Failed to create template. Please try again.',
         invalidTopicId: 'Invalid topic selected',
+        imageLabel: 'Image', // Added for CreateTemplate.js
+        imagePlaceholder: 'Upload template image', // Added for CreateTemplate.js
+        imageRequired: 'Image is required', // Added for CreateTemplate.js
+        attachment: 'Question Attachment', // Already present
+        attachmentSelected: 'Selected: {name}', // Added for CreateTemplate.js
+        invalidAttachment: 'Invalid attachment type. Use JPEG, PNG, PDF, MP4, DOC, or DOCX.', // Added for CreateTemplate.js
+        attachmentTooLarge: 'Attachment size must be less than 10MB.', // Added for CreateTemplate.js
+        viewAttachment: 'View Attachment', // Already present
       },
       templateList: {
         title: 'Title',
@@ -422,6 +436,7 @@ const resources = {
         searchLabel: 'Buscar Plantillas',
         searchPlaceholder: 'Buscar plantillas por palabra clave o etiqueta',
         searchButton: 'Buscar',
+        search: 'Buscar', // Added for Home.js
         latestTemplates: 'Últimas Plantillas',
         topTemplates: 'Plantillas Populares',
         myTemplates: 'Mis Plantillas',
@@ -432,9 +447,14 @@ const resources = {
         by: 'Por',
         unknown: 'Desconocido',
         viewTemplate: 'Ver plantilla {title}',
+        viewDisabled: 'Ver (Desactivado)', // Added for Home.js
         templateImage: 'Imagen para la plantilla {title}',
         loadError: 'Error al cargar plantillas',
         unauthorized: 'Por favor inicia sesión para acceder a tus plantillas',
+        forbidden: 'No tienes permiso para ver estas plantillas', // Added for Home.js
+        serverError: 'Error del servidor. Por favor intenta de nuevo más tarde', // Added for Home.js
+        deleteError: 'Error al eliminar la plantilla. Por favor intenta de nuevo', // Added for Home.js
+        invalidTemplateId: 'ID de plantilla inválido', // Added for Home.js
         retry: 'Reintentar',
       },
       login: {
@@ -549,20 +569,19 @@ const resources = {
         edit: 'Editar',
         delete: 'Eliminar',
         noResults: 'Aún no hay envíos de formularios',
+        noQuestions: 'No hay preguntas disponibles para esta plantilla', // Added for TemplatePage.js
         resultsList: 'Lista de envíos de formularios',
         submittedOn: 'Enviado el {date}',
         unknownQuestion: 'Pregunta Desconocida',
         confirmDelete: '¿Seguro que quieres eliminar esta plantilla?',
         retry: 'Reintentar',
-        // Added for TemplatePage.js
         formSubmitSuccess: '¡Formulario enviado exitosamente!',
         formSubmitError: 'Error al enviar el formulario. Por favor intenta de nuevo.',
         rateLimit: 'Demasiadas solicitudes. Por favor intenta de nuevo más tarde.',
-        forbidden: 'No tienes permiso para ver los resultados.',
+        forbidden: 'No tienes permiso para ver esta plantilla o sus resultados', // Updated for TemplatePage.js
         serverError: 'Error del servidor. Por favor intenta de nuevo más tarde.',
         imageAlt: 'Imagen para la plantilla {title}',
         options: 'Opciones',
-        // Question types
         string: 'Texto Corto',
         text: 'Texto Largo',
         integer: 'Número',
@@ -572,10 +591,10 @@ const resources = {
         linear_scale: 'Escala Lineal',
         date: 'Fecha',
         time: 'Hora',
-        attachment: 'Adjunto', // Already present in templateForm and form
-        viewAttachment: 'Ver Adjunto', // Already present
-        required: 'Obligatorio', // Already present
-        optional: 'Opcional', // Already present
+        attachment: 'Adjunto',
+        viewAttachment: 'Ver Adjunto',
+        required: 'Obligatorio',
+        optional: 'Opcional',
       },
       createTemplate: {
         title: 'Crear Plantilla',
@@ -605,7 +624,8 @@ const resources = {
         date: 'Fecha',
         time: 'Hora',
         questionTitle: 'Ingresa el título de la pregunta',
-        required: 'Requerido',
+        required: 'Obligatorio',
+        optional: 'Opcional',
         optionsLabel: 'Opciones (separadas por comas)',
         optionsPlaceholder: 'ej., Opción 1, Opción 2, Opción 3',
         minLabel: 'Valor Mínimo',
@@ -631,6 +651,14 @@ const resources = {
         invalidData: 'Datos de formulario inválidos proporcionados',
         submitError: 'Error al crear la plantilla. Por favor intenta de nuevo.',
         invalidTopicId: 'Tema seleccionado inválido',
+        imageLabel: 'Imagen', // Added for CreateTemplate.js
+        imagePlaceholder: 'Subir imagen de la plantilla', // Added for CreateTemplate.js
+        imageRequired: 'La imagen es obligatoria', // Added for CreateTemplate.js
+        attachment: 'Adjunto de Pregunta', // Already present
+        attachmentSelected: 'Seleccionado: {name}', // Added for CreateTemplate.js
+        invalidAttachment: 'Tipo de adjunto no válido. Usa JPEG, PNG, PDF, MP4, DOC o DOCX.', // Added for CreateTemplate.js
+        attachmentTooLarge: 'El tamaño del adjunto debe ser menor a 10MB.', // Added for CreateTemplate.js
+        viewAttachment: 'Ver Adjunto', // Already present
       },
       templateList: {
         title: 'Título',
