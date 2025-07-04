@@ -6,7 +6,7 @@ import { AuthContext } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext';
 import axios from 'axios';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const API_BASE = process.env.REACT_APP_API_URL || 'https://forms-app-9zln.onrender.com';
 
 function TagCloud({ ariaLabelledBy }) {
   const { t } = useTranslation();
@@ -31,7 +31,12 @@ function TagCloud({ ariaLabelledBy }) {
       setError(null);
       retryCount.current = 0;
     } catch (err) {
-      console.error('❌ Failed to load tags:', { status: err.response?.status });
+      console.error('❌ Failed to load tags:', {
+        status: err.response?.status || err.status || 'unknown',
+        message: err.response?.data?.message || err.message,
+        code: err.code,
+        timestamp: new Date().toISOString(),
+      });
       if (err.response?.status === 429 && retryCount.current < maxRetries) {
         retryCount.current += 1;
         console.log(`✅ Retrying tag fetch, attempt ${retryCount.current}`);
@@ -41,6 +46,7 @@ function TagCloud({ ariaLabelledBy }) {
       setError(
         err.response?.status === 429 ? t('tagCloud.rateLimit') :
         err.response?.status === 401 ? t('tagCloud.unauthorized') :
+        err.response?.status === 502 ? t('tagCloud.serverDown') :
         t('tagCloud.error')
       );
     } finally {
