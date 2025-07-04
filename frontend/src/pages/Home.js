@@ -10,7 +10,7 @@ import TagCloud from '../components/TagCloud';
 import { Alert, Button, Spinner, Card, Form, InputGroup } from 'react-bootstrap';
 import ReactMarkdown from 'react-markdown';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const API_BASE = process.env.REACT_APP_API_URL || 'https://forms-app-9zln.onrender.com';
 
 function Home() {
   const { t } = useTranslation();
@@ -50,12 +50,14 @@ function Home() {
       } catch (err) {
         if (isMounted) {
           console.error('❌ Error fetching public templates:', {
-            status: err.response?.status,
-            message: err.response?.data?.message,
+            status: err.response?.status || err.status || 'unknown',
+            message: err.response?.data?.message || err.message,
+            code: err.code,
             timestamp: new Date().toISOString(),
           });
           setError(
             err.response?.status === 429 ? t('home.rateLimit') :
+            err.response?.status === 502 ? t('home.serverDown') :
             err.response?.status === 500 ? t('home.serverError') :
             t('home.loadError')
           );
@@ -88,14 +90,16 @@ function Home() {
       } catch (err) {
         if (isMounted) {
           console.error('❌ Error fetching my templates:', {
-            status: err.response?.status,
-            message: err.response?.data?.message,
+            status: err.response?.status || err.status || 'unknown',
+            message: err.response?.data?.message || err.message,
+            code: err.code,
             timestamp: new Date().toISOString(),
           });
           setError(
             err.response?.status === 401 ? t('home.unauthorized') :
             err.response?.status === 403 ? t('home.forbidden') :
             err.response?.status === 429 ? t('home.rateLimit') :
+            err.response?.status === 502 ? t('home.serverDown') :
             t('home.loadError')
           );
         }
@@ -131,14 +135,16 @@ function Home() {
     } catch (err) {
       console.error('❌ Error deleting template:', {
         templateId,
-        status: err.response?.status,
-        message: err.response?.data?.message,
+        status: err.response?.status || err.status || 'unknown',
+        message: err.response?.data?.message || err.message,
+        code: err.code,
         timestamp: new Date().toISOString(),
       });
       setError(
         err.response?.status === 401 ? t('home.unauthorized') :
         err.response?.status === 403 ? t('home.forbidden') :
         err.response?.status === 429 ? t('home.rateLimit') :
+        err.response?.status === 502 ? t('home.serverDown') :
         t('home.deleteError')
       );
     }
@@ -179,12 +185,14 @@ function Home() {
         setError(null);
       } catch (err) {
         console.error('❌ Error retrying public templates:', {
-          status: err.response?.status,
-          message: err.response?.data?.message,
+          status: err.response?.status || err.status || 'unknown',
+          message: err.response?.data?.message || err.message,
+          code: err.code,
           timestamp: new Date().toISOString(),
         });
         setError(
           err.response?.status === 429 ? t('home.rateLimit') :
+          err.response?.status === 502 ? t('home.serverDown') :
           err.response?.status === 500 ? t('home.serverError') :
           t('home.loadError')
         );
@@ -210,14 +218,16 @@ function Home() {
         setError(null);
       } catch (err) {
         console.error('❌ Error retrying my templates:', {
-          status: err.response?.status,
-          message: err.response?.data?.message,
+          status: err.response?.status || err.status || 'unknown',
+          message: err.response?.data?.message || err.message,
+          code: err.code,
           timestamp: new Date().toISOString(),
         });
         setError(
           err.response?.status === 401 ? t('home.unauthorized') :
           err.response?.status === 403 ? t('home.forbidden') :
           err.response?.status === 429 ? t('home.rateLimit') :
+          err.response?.status === 502 ? t('home.serverDown') :
           t('home.loadError')
         );
       } finally {
