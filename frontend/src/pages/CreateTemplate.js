@@ -65,7 +65,7 @@ function CreateTemplate() {
           setTags(tagsRes.data.tags.map(t => ({ value: String(t.id), label: t.name })) || []);
           setUsers(usersRes.data.users.filter(u => u.id !== user?.id).map(u => ({ value: String(u.id), label: `${u.name} (${u.email})` })) || []);
           console.log('✅ Fetched data:', {
-            topics: topicsRes.data.topics?.length,
+            topics: topicsRes.data.topics,
             tags: tagsRes.data.tags?.length,
             users: usersRes.data.users?.length,
             timestamp: new Date().toISOString(),
@@ -102,6 +102,7 @@ function CreateTemplate() {
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
+    console.log('✅ Input changed:', { name, value, timestamp: new Date().toISOString() });
     setFormData((prev) => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
@@ -242,7 +243,10 @@ function CreateTemplate() {
     }
     const newErrors = {};
     if (!formData.title.trim()) newErrors.title = t('createTemplate.titleRequired');
-    if (!formData.topic_id) newErrors.topic_id = t('createTemplate.topicRequired');
+    if (!formData.topic_id || !topics.find(t => t.id === Number(formData.topic_id))) {
+      newErrors.topic_id = t('createTemplate.topicRequired');
+      console.error('❌ Invalid topic_id:', { topic_id: formData.topic_id, availableTopics: topics, timestamp: new Date().toISOString() });
+    }
     if (formData.image && formData.image.size > 5 * 1024 * 1024) newErrors.image = t('createTemplate.imageTooLarge');
     formData.questions.forEach((q, i) => {
       if (!q.title.trim()) {
@@ -274,10 +278,8 @@ function CreateTemplate() {
       formDataToSend.append('description', formData.description || '');
       formDataToSend.append('topic_id', Number(formData.topic_id));
       formDataToSend.append('is_public', formData.is_public.toString());
-      // Send tags and permissions as arrays
       formDataToSend.append('tags', JSON.stringify(formData.tags || []));
       formDataToSend.append('permissions', JSON.stringify(formData.permissions || []));
-      // Prepare questions with all required fields
       const questionsToSend = formData.questions.map(q => ({
         title: q.title,
         type: q.type,
@@ -304,6 +306,7 @@ function CreateTemplate() {
       }
       console.log('✅ Submitting template:', {
         formData: formDataEntries,
+        availableTopics: topics,
         timestamp: new Date().toISOString(),
       });
 
