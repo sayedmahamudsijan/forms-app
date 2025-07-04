@@ -15,7 +15,7 @@ const app = express();
 const server = http.createServer(app);
 
 const storage = multer.diskStorage({
-  destination: 'Uploads/',
+  destination: 'uploads/',
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     cb(null, `${file.fieldname}-${uniqueSuffix}${path.extname(file.originalname)}`);
@@ -78,7 +78,7 @@ app.use((req, res, next) => {
 });
 
 // Serve static files from the React build directory
-app.use(express.static(path.join(__dirname, 'client/build')));
+app.use(express.static(path.join(__dirname, '../frontend/build')));
 
 // Initialize WebSocket
 initSocket(server);
@@ -107,7 +107,7 @@ app.get('*', (req, res) => {
   console.log(`✅ Serving React app for ${req.originalUrl}`, {
     timestamp: new Date().toISOString(),
   });
-  res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
+  res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
 });
 
 // 404 Handler (should not be reached for client-side routes)
