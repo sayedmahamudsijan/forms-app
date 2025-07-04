@@ -3,11 +3,27 @@
 module.exports = {
   async up(queryInterface, Sequelize) {
     try {
-      // Remove redundant foreign key constraint
-      await queryInterface.removeConstraint('template_questions', 'template_questions_template_id_fkey1', { ifExists: true });
-      console.log('✅ Removed redundant foreign key constraint template_questions_template_id_fkey1', {
-        timestamp: new Date().toISOString(),
-      });
+      // Check for and remove redundant foreign key constraint on template_id
+      const constraints = await queryInterface.sequelize.query(
+        `SELECT constraint_name
+         FROM information_schema.table_constraints
+         WHERE table_name = 'template_questions'
+         AND constraint_type = 'FOREIGN KEY'
+         AND constraint_name LIKE '%template_id_fkey%';`,
+        { type: queryInterface.sequelize.QueryTypes.SELECT }
+      );
+      
+      for (const constraint of constraints) {
+        await queryInterface.removeConstraint('template_questions', constraint.constraint_name);
+        console.log(`✅ Removed foreign key constraint ${constraint.constraint_name} from template_questions`, {
+          timestamp: new Date().toISOString(),
+        });
+      }
+      if (constraints.length === 0) {
+        console.log('✅ No redundant template_id foreign key constraints found in template_questions', {
+          timestamp: new Date().toISOString(),
+        });
+      }
 
       // Check if attachment_url column exists before attempting to add
       const table = await queryInterface.describeTable('template_questions');
