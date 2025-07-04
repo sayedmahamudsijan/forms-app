@@ -173,4 +173,29 @@ const updateMe = [
   },
 ];
 
-module.exports = { register, login, getMe, updateMe };
+const refreshToken = async (req, res) => {
+  try {
+    const user = await User.findByPk(req.user.id);
+    if (!user) {
+      console.log(`❌ RefreshToken failed: User ID ${req.user.id} not found`);
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    const token = jwt.sign(
+      { id: user.id, email: user.email, is_admin: user.is_admin },
+      process.env.JWT_SECRET,
+      { expiresIn: '1d' }
+    );
+    console.log(`✅ RefreshToken successful: User ID ${user.id}, Email: ${user.email}`);
+    return res.json({
+      success: true,
+      message: 'Token refreshed successfully',
+      token,
+      user: { id: user.id, email: user.email, name: user.name, is_admin: user.is_admin, language: user.language, theme: user.theme },
+    });
+  } catch (err) {
+    console.error('❌ RefreshToken error:', { userId: req.user.id, error: err.message, stack: err.stack });
+    return res.status(500).json({ success: false, message: 'Server error', error: err.message });
+  }
+};
+
+module.exports = { register, login, getMe, updateMe, refreshToken };
