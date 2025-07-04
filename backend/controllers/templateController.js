@@ -131,15 +131,18 @@ const createTemplate = [
     try {
       const { title, description, topic_id, is_public, questions, tags, permissions } = req.body;
       const user_id = parseInt(req.user.id, 10); // Ensure user_id is an integer
+      // Coerce types explicitly (PATCH APPLIED HERE)
       const parsed_topic_id = parseInt(topic_id, 10); // Ensure topic_id is an integer
+      const parsedIsPublic = is_public === true || is_public === 'true'; // Coerce is_public to boolean
 
-      // Log request details
-      console.log(`ℹ️ CreateTemplate attempt: User ID ${user_id}, Topic ID ${parsed_topic_id}`, {
-        timestamp: new Date().toISOString(),
-        raw_user_id: req.user.id,
+      // Log normalized inputs
+      console.log('ℹ️ Normalized inputs:', {
+        user_id,
+        parsed_topic_id,
+        parsedIsPublic,
         raw_topic_id: topic_id,
-        body: req.body,
-        headers: req.headers.authorization ? 'Bearer token present' : 'No Bearer token',
+        raw_is_public: is_public,
+        timestamp: new Date().toISOString(),
       });
 
       // Validate user exists
@@ -273,7 +276,7 @@ const createTemplate = [
       // Log before Template.create to capture input
       console.log(`ℹ️ Attempting Template.create: user_id=${user_id}, topic_id=${parsed_topic_id}`, {
         timestamp: new Date().toISOString(),
-        template_data: { user_id, title, description, topic_id: parsed_topic_id, is_public },
+        template_data: { user_id, title, description, topic_id: parsed_topic_id, is_public: parsedIsPublic },
       });
 
       // Enable SQL logging for Template.create
@@ -283,7 +286,7 @@ const createTemplate = [
         description,
         image_url,
         topic_id: parsed_topic_id,
-        is_public,
+        is_public: parsedIsPublic,
         search_vector: Sequelize.fn('to_tsvector', 'english', `${title} ${description || ''}`),
       }, {
         transaction,
@@ -292,6 +295,7 @@ const createTemplate = [
             timestamp: new Date().toISOString(),
             user_id,
             topic_id: parsed_topic_id,
+            is_public: parsedIsPublic,
           });
         }
       });
@@ -330,7 +334,7 @@ const createTemplate = [
         { transaction }
       );
 
-      if (!is_public && permissions.length > 0) {
+      if (!parsedIsPublic && permissions.length > 0) {
         // Validate permission user IDs
         const permissionUsers = await User.findAll({
           where: { id: permissions },
@@ -372,7 +376,7 @@ const createTemplate = [
       console.log(`✅ Template created: ID ${template.id}, Title: ${title}, User ID ${user_id}`, {
         timestamp: new Date().toISOString(),
         topic_id: parsed_topic_id,
-        is_public,
+        is_public: parsedIsPublic,
         permissions,
       });
       return res.status(201).json({ success: true, template: createdTemplate, message: 'Template created successfully' });
