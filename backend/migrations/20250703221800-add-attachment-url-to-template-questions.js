@@ -9,32 +9,47 @@ module.exports = {
         timestamp: new Date().toISOString(),
       });
 
-      // Ensure attachment_url column exists
-      await queryInterface.addColumn('template_questions', 'attachment_url', {
-        type: Sequelize.STRING,
-        allowNull: true,
-      }, { ifNotExists: true });
-      console.log('✅ Added/Verified attachment_url column in template_questions', {
-        timestamp: new Date().toISOString(),
-      });
+      // Check if attachment_url column exists before attempting to add
+      const table = await queryInterface.describeTable('template_questions');
+      if (!table.attachment_url) {
+        await queryInterface.addColumn('template_questions', 'attachment_url', {
+          type: Sequelize.STRING,
+          allowNull: true,
+        });
+        console.log('✅ Added attachment_url column in template_questions', {
+          timestamp: new Date().toISOString(),
+        });
+      } else {
+        console.log('✅ attachment_url column already exists in template_questions, skipping addition', {
+          timestamp: new Date().toISOString(),
+        });
+      }
 
       // Ensure min, max, min_label, max_label columns exist
-      await queryInterface.addColumn('template_questions', 'min', {
-        type: Sequelize.INTEGER,
-        allowNull: true,
-      }, { ifNotExists: true });
-      await queryInterface.addColumn('template_questions', 'max', {
-        type: Sequelize.INTEGER,
-        allowNull: true,
-      }, { ifNotExists: true });
-      await queryInterface.addColumn('template_questions', 'min_label', {
-        type: Sequelize.STRING,
-        allowNull: true,
-      }, { ifNotExists: true });
-      await queryInterface.addColumn('template_questions', 'max_label', {
-        type: Sequelize.STRING,
-        allowNull: true,
-      }, { ifNotExists: true });
+      if (!table.min) {
+        await queryInterface.addColumn('template_questions', 'min', {
+          type: Sequelize.INTEGER,
+          allowNull: true,
+        });
+      }
+      if (!table.max) {
+        await queryInterface.addColumn('template_questions', 'max', {
+          type: Sequelize.INTEGER,
+          allowNull: true,
+        });
+      }
+      if (!table.min_label) {
+        await queryInterface.addColumn('template_questions', 'min_label', {
+          type: Sequelize.STRING,
+          allowNull: true,
+        });
+      }
+      if (!table.max_label) {
+        await queryInterface.addColumn('template_questions', 'max_label', {
+          type: Sequelize.STRING,
+          allowNull: true,
+        });
+      }
       console.log('✅ Added/Verified min, max, min_label, max_label columns in template_questions', {
         timestamp: new Date().toISOString(),
       });
@@ -123,7 +138,7 @@ module.exports = {
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
-      console.warn(`�yeong Failed to revert template_questions: ${error.message}`, {
+      console.warn(`⚠️ Failed to revert template_questions: ${error.message}`, {
         timestamp: new Date().toISOString(),
       });
       throw error;
