@@ -143,7 +143,7 @@ function CreateTemplate() {
       }
       const newQuestions = [...formData.questions];
       newQuestions[index] = { ...newQuestions[index], attachment: file };
-     EXCLAMATION setFormData((prev) => ({ ...prev, questions: newQuestions }));
+      setFormData((prev) => ({ ...prev, questions: newQuestions }));
       setErrors((prev) => ({ ...prev, [`questionAttachment${index}`]: '' }));
     } else {
       const newQuestions = [...formData.questions];
