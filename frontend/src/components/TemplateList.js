@@ -8,7 +8,7 @@ import { ThemeContext } from '../context/ThemeContext';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const API_BASE = process.env.REACT_APP_API_URL || 'https://forms-app-9zln.onrender.com';
 
 function TemplateList({ templates, onDelete, onEdit, showActions = false, ariaLabelledBy }) {
   const { t } = useTranslation();
@@ -26,6 +26,9 @@ function TemplateList({ templates, onDelete, onEdit, showActions = false, ariaLa
     templates.forEach((template) => {
       if (!template.id) {
         console.warn(`⚠️ Template missing ID: ${JSON.stringify(template)}, timestamp=${new Date().toISOString()}`);
+      }
+      if (template.TemplateQuestions?.length > 0) {
+        console.log(`✅ Template ${template.id} has ${template.TemplateQuestions.length} questions, attachments=${template.TemplateQuestions.filter(q => q.attachment_url).length}, timestamp=${new Date().toISOString()}`);
       }
     });
   }, [templates]);
@@ -46,7 +49,7 @@ function TemplateList({ templates, onDelete, onEdit, showActions = false, ariaLa
   const handleDelete = useCallback(
     async (id) => {
       if (!id) {
-        setDeleteError(t('templateList.invalidId'));
+        setDeleteError(t('templateList.invalidTemplateId'));
         console.error('❌ Attempted to delete invalid template_id:', id, `timestamp=${new Date().toISOString()}`);
         return;
       }
@@ -135,6 +138,65 @@ function TemplateList({ templates, onDelete, onEdit, showActions = false, ariaLa
         accessor: 'is_public',
         Cell: ({ value }) => (value ? t('templateList.yes') : t('templateList.no')),
       },
+      {
+        Header: t('templateList.attachments'), // Added for attachments
+        accessor: 'TemplateQuestions',
+        Cell: ({ value, row }) => {
+          const attachments = value?.filter(q => q.attachment_url) || [];
+          if (!row.original.id) {
+            console.error(`❌ Missing template ID for attachments: ${JSON.stringify(row.original)}, timestamp=${new Date().toISOString()}`);
+            return <span>{t('templateList.noAttachments')}</span>;
+          }
+          if (attachments.length === 0) {
+            return <span>{t('templateList.noAttachments')}</span>;
+          }
+          return (
+            <ul className="list-unstyled mb-0">
+              {attachments.map((question, index) => {
+                const fileType = question.attachment_url?.split('.').pop()?.toUpperCase() || 'Unknown';
+                return (
+                  <li key={`${row.original.id}-attachment-${index}`}>
+                    <a
+                      href={question.attachment_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={t('templatePage.viewAttachment', { title: question.title || t('templatePage.unknownQuestion') })}
+                      onClick={() => {
+                        console.log(`✅ Viewing attachment: url=${question.attachment_url}, questionId=${question.id}, templateId=${row.original.id}, timestamp=${new Date().toISOString()}`);
+                      }}
+                    >
+                      {t('templatePage.viewAttachment')} ({fileType})
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
+          );
+        },
+      },
+      {
+        Header: t('templateList.view'), // Added for View button
+        Cell: ({ row }) => {
+          if (!row.original.id) {
+            console.error(`❌ Missing template ID for view button: ${JSON.stringify(row.original)}, timestamp=${new Date().toISOString()}`);
+            return <span>{t('home.viewDisabled')}</span>;
+          }
+          return (
+            <Button
+              as={Link}
+              to={`/templates/${row.original.id}`}
+              variant={theme === 'dark' ? 'outline-light' : 'outline-primary'}
+              size="sm"
+              aria-label={t('templateList.viewTemplate', { title: row.original.title })}
+              onClick={() => {
+                console.log(`✅ Navigating to template ${row.original.id}, timestamp=${new Date().toISOString()}`);
+              }}
+            >
+              {t('home.search')} {/* Reused 'search' as 'View' for consistency with Home.js */}
+            </Button>
+          );
+        },
+      },
     ];
 
     if (showActions) {
@@ -143,7 +205,7 @@ function TemplateList({ templates, onDelete, onEdit, showActions = false, ariaLa
         Cell: ({ row }) => {
           if (!row.original.id) {
             console.error('❌ Invalid template_id in actions:', row.original, `timestamp=${new Date().toISOString()}`);
-            return <span>{t('templateList.invalidId')}</span>;
+            return <span>{t('templateList.invalidTemplateId')}</span>;
           }
           const canEditDelete = user && (user.id === row.original.user_id || user.is_admin);
           return (
