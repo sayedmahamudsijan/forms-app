@@ -65,7 +65,7 @@ function CreateTemplate() {
           setTags(tagsRes.data.tags.map(t => ({ value: String(t.id), label: t.name })) || []);
           setUsers(usersRes.data.users.filter(u => u.id !== user?.id).map(u => ({ value: String(u.id), label: `${u.name} (${u.email})` })) || []);
           console.log('✅ Fetched data:', {
-            topics: topicsRes.data.topics,
+            topics: topicsRes.data.topics?.length,
             tags: tagsRes.data.tags?.length,
             users: usersRes.data.users?.length,
             timestamp: new Date().toISOString(),
@@ -75,7 +75,7 @@ function CreateTemplate() {
       } catch (err) {
         console.error('❌ Error fetching data:', {
           status: err.response?.status,
-          message: err.response?.data?.message,
+          message: err.response?.data?.message || err.message,
           timestamp: new Date().toISOString(),
         });
         setSubmitError(
@@ -102,7 +102,7 @@ function CreateTemplate() {
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
-    console.log('✅ Input changed:', { name, value, timestamp: new Date().toISOString() });
+    console.log('ℹ️ Input changed:', { name, value: type === 'checkbox' ? checked : value, timestamp: new Date().toISOString() });
     setFormData((prev) => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
@@ -128,6 +128,7 @@ function CreateTemplate() {
       setFormData((prev) => ({ ...prev, image: file }));
       setImagePreview(URL.createObjectURL(file));
       setErrors((prev) => ({ ...prev, image: '' }));
+      console.log('ℹ️ Image selected:', { fileName: file.name, size: file.size, timestamp: new Date().toISOString() });
     }
   };
 
@@ -146,25 +147,27 @@ function CreateTemplate() {
       newQuestions[index] = { ...newQuestions[index], attachment: file };
       setFormData((prev) => ({ ...prev, questions: newQuestions }));
       setErrors((prev) => ({ ...prev, [`questionAttachment${index}`]: '' }));
+      console.log('ℹ️ Question attachment selected:', { index, fileName: file.name, size: file.size, timestamp: new Date().toISOString() });
     } else {
       const newQuestions = [...formData.questions];
       newQuestions[index] = { ...newQuestions[index], attachment: null };
       setFormData((prev) => ({ ...prev, questions: newQuestions }));
       setErrors((prev) => ({ ...prev, [`questionAttachment${index}`]: '' }));
+      console.log('ℹ️ Question attachment removed:', { index, timestamp: new Date().toISOString() });
     }
   };
 
   const handleTagChange = (selectedOptions) => {
     const newTags = selectedOptions ? selectedOptions.map(opt => opt.label) : [];
     setFormData((prev) => ({ ...prev, tags: newTags }));
-    console.log('✅ Updated tags:', newTags, { timestamp: new Date().toISOString() });
+    console.log('ℹ️ Updated tags:', { tags: newTags, timestamp: new Date().toISOString() });
     setServerErrors([]);
   };
 
   const handlePermissionChange = (selectedOptions) => {
     const newPermissions = selectedOptions ? selectedOptions.map(opt => Number(opt.value)) : [];
     setFormData((prev) => ({ ...prev, permissions: newPermissions }));
-    console.log('✅ Updated permissions:', newPermissions, { timestamp: new Date().toISOString() });
+    console.log('ℹ️ Updated permissions:', { permissions: newPermissions, timestamp: new Date().toISOString() });
     setServerErrors([]);
   };
 
@@ -192,6 +195,7 @@ function CreateTemplate() {
     }
     setFormData((prev) => ({ ...prev, questions: newQuestions }));
     setErrors((prev) => ({ ...prev, [`question${index}`]: '' }));
+    console.log('ℹ️ Question updated:', { index, field, value, timestamp: new Date().toISOString() });
   };
 
   const addQuestion = () => {
@@ -211,6 +215,7 @@ function CreateTemplate() {
         attachment: null,
       }],
     }));
+    console.log('ℹ️ Added new question:', { questionCount: formData.questions.length + 1, timestamp: new Date().toISOString() });
   };
 
   const removeQuestion = (index) => {
@@ -224,6 +229,7 @@ function CreateTemplate() {
       delete newErrors[`questionAttachment${index}`];
       return newErrors;
     });
+    console.log('ℹ️ Removed question:', { index, timestamp: new Date().toISOString() });
   };
 
   const onDragEnd = (result) => {
@@ -232,20 +238,21 @@ function CreateTemplate() {
     const [reorderedItem] = newQuestions.splice(result.source.index, 1);
     newQuestions.splice(result.destination.index, 0, reorderedItem);
     setFormData((prev) => ({ ...prev, questions: newQuestions }));
-    console.log('✅ Reordered questions:', newQuestions.map(q => q.title), { timestamp: new Date().toISOString() });
+    console.log('ℹ️ Reordered questions:', { newOrder: newQuestions.map(q => q.title), timestamp: new Date().toISOString() });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!user) {
       setSubmitError(t('createTemplate.loginRequired'));
+      console.error('❌ Submit failed: User not authenticated', { timestamp: new Date().toISOString() });
       return;
     }
     const newErrors = {};
     if (!formData.title.trim()) newErrors.title = t('createTemplate.titleRequired');
     if (!formData.topic_id || !topics.find(t => t.id === Number(formData.topic_id))) {
       newErrors.topic_id = t('createTemplate.topicRequired');
-      console.error('❌ Invalid topic_id:', { topic_id: formData.topic_id, availableTopics: topics, timestamp: new Date().toISOString() });
+      console.error('❌ Invalid topic_id:', { topic_id: formData.topic_id, availableTopics: topics.map(t => t.id), timestamp: new Date().toISOString() });
     }
     if (formData.image && formData.image.size > 5 * 1024 * 1024) newErrors.image = t('createTemplate.imageTooLarge');
     formData.questions.forEach((q, i) => {
@@ -267,6 +274,7 @@ function CreateTemplate() {
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       setServerErrors([]);
+      console.error('❌ Client-side validation errors:', { errors: newErrors, timestamp: new Date().toISOString() });
       return;
     }
     setIsSubmitting(true);
@@ -304,9 +312,9 @@ function CreateTemplate() {
       for (const [key, value] of formDataToSend.entries()) {
         formDataEntries[key] = value instanceof File ? `File: ${value.name}` : value;
       }
-      console.log('✅ Submitting template:', {
+      console.log('ℹ️ Submitting template:', {
         formData: formDataEntries,
-        availableTopics: topics,
+        availableTopics: topics.map(t => t.id),
         timestamp: new Date().toISOString(),
       });
 
@@ -325,7 +333,7 @@ function CreateTemplate() {
     } catch (err) {
       console.error('❌ Error creating template:', {
         status: err.response?.status,
-        message: err.response?.data?.message,
+        message: err.response?.data?.message || err.message,
         errors: err.response?.data?.errors,
         timestamp: new Date().toISOString(),
       });
@@ -339,6 +347,7 @@ function CreateTemplate() {
         err.response.data.errors.forEach(e => {
           if (e.path === 'title') newFieldErrors.title = t(`createTemplate.${e.path}Error`, { defaultValue: e.msg });
           else if (e.path === 'topic_id') newFieldErrors.topic_id = t(`createTemplate.${e.path}Error`, { defaultValue: e.msg });
+          else if (e.path === 'is_public') newFieldErrors.is_public = t(`createTemplate.${e.path}Error`, { defaultValue: e.msg });
           else if (e.path.startsWith('questions')) {
             const match = e.path.match(/questions\[(\d+)\]/);
             if (match) {
@@ -508,7 +517,12 @@ function CreateTemplate() {
             checked={formData.is_public}
             onChange={handleInputChange}
             label={t('createTemplate.isPublic')}
+            isInvalid={!!errors.is_public}
+            aria-describedby="is_public-error"
           />
+          <Form.Control.Feedback type="invalid">
+            {errors.is_public}
+          </Form.Control.Feedback>
         </Form.Group>
         <Form.Group className="mb-3" controlId="tags">
           <Form.Label>{t('createTemplate.tagsLabel')}</Form.Label>
@@ -687,7 +701,7 @@ function CreateTemplate() {
                                 placeholder={t('createTemplate.minLabelPlaceholder')}
                               />
                             </Form.Group>
-                            <Form.Group className="mt-2" controlId={`maxLabel-${index}`}>
+                            <Form.Group className="mt-2" controlId=`maxLabel-${index}`>
                               <Form.Label>{t('createTemplate.maxLabelLabel')}</Form.Label>
                               <Form.Control
                                 type="text"
