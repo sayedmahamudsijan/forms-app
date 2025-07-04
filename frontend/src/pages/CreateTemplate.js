@@ -32,12 +32,13 @@ function CreateTemplate() {
       state: 'optional',
       is_visible_in_results: true,
       options: [],
-      attachment: null, // New field for question attachment
+      attachment: null,
     }],
     image: null,
   });
   const [errors, setErrors] = useState({});
   const [submitError, setSubmitError] = useState(null);
+  const [serverErrors, setServerErrors] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [imagePreview, setImagePreview] = useState(null);
@@ -67,7 +68,11 @@ function CreateTemplate() {
           setLoading(false);
         }
       } catch (err) {
-        console.error('❌ Error fetching data:', { status: err.response?.status, message: err.response?.data?.message, timestamp: new Date().toISOString() });
+        console.error('❌ Error fetching data:', {
+          status: err.response?.status,
+          message: err.response?.data?.message,
+          timestamp: new Date().toISOString(),
+        });
         setSubmitError(
           err.response?.status === 401 ? t('createTemplate.unauthorized') :
           err.response?.status === 429 ? t('createTemplate.rateLimit') :
@@ -97,6 +102,7 @@ function CreateTemplate() {
       [name]: type === 'checkbox' ? checked : value,
     }));
     setErrors((prev) => ({ ...prev, [name]: '' }));
+    setServerErrors([]);
   };
 
   const handleImageChange = (e) => {
@@ -143,15 +149,17 @@ function CreateTemplate() {
   };
 
   const handleTagChange = (selectedOptions) => {
-    const newTags = selectedOptions ? selectedOptions.map(opt => opt.label) : []; // Backend expects tag names
+    const newTags = selectedOptions ? selectedOptions.map(opt => opt.label) : [];
     setFormData((prev) => ({ ...prev, tags: newTags }));
     console.log('✅ Updated tags:', newTags);
+    setServerErrors([]);
   };
 
   const handlePermissionChange = (selectedOptions) => {
     const newPermissions = selectedOptions ? selectedOptions.map(opt => opt.value) : [];
     setFormData((prev) => ({ ...prev, permissions: newPermissions }));
     console.log('✅ Updated permissions:', newPermissions);
+    setServerErrors([]);
   };
 
   const handleQuestionChange = (index, field, value) => {
@@ -230,9 +238,11 @@ function CreateTemplate() {
     });
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
+      setServerErrors([]);
       return;
     }
     setIsSubmitting(true);
+    setServerErrors([]);
     try {
       const token = getToken();
       const formDataToSend = new FormData();
@@ -240,16 +250,15 @@ function CreateTemplate() {
       formDataToSend.append('description', formData.description || '');
       formDataToSend.append('topic_id', formData.topic_id);
       formDataToSend.append('is_public', formData.is_public.toString());
-      formData.tags.forEach(tag => formDataToSend.append('tags[]', tag));
-      formData.permissions.forEach(perm => formDataToSend.append('permissions[]', perm));
+      // Ensure tags and permissions are arrays
+      (formData.tags || []).forEach(tag => formDataToSend.append('tags[]', tag));
+      (formData.permissions || []).forEach(perm => formDataToSend.append('permissions[]', perm));
       formData.questions.forEach((q, i) => {
         formDataToSend.append(`questions[${i}][title]`, q.title);
         formDataToSend.append(`questions[${i}][type]`, q.type);
         formDataToSend.append(`questions[${i}][state]`, q.state);
         formDataToSend.append(`questions[${i}][is_visible_in_results]`, q.is_visible_in_results.toString());
-        if (q.options.length) {
-          formDataToSend.append(`questions[${i}][options]`, JSON.stringify(q.options));
-        }
+        (q.options || []).forEach(opt => formDataToSend.append(`questions[${i}][options][]`, opt));
         if (q.attachment) {
           formDataToSend.append(`questionAttachments`, q.attachment);
         }
@@ -280,13 +289,20 @@ function CreateTemplate() {
         errors: err.response?.data?.errors,
         timestamp: new Date().toISOString(),
       });
-      setSubmitError(
-        err.response?.status === 400 ? (err.response?.data?.errors?.map(e => e.msg).join(', ') || t('createTemplate.invalidData')) :
-        err.response?.status === 401 ? t('createTemplate.unauthorized') :
-        err.response?.status === 403 ? t('createTemplate.forbidden') :
-        err.response?.status === 429 ? t('createTemplate.rateLimit') :
-        err.response?.data?.message || t('createTemplate.submitError')
-      );
+      if (err.response?.data?.errors?.length) {
+        setServerErrors(err.response.data.errors.map(e => ({
+          path: e.path,
+          msg: t(`createTemplate.${e.path}Error`, { defaultValue: e.msg }),
+        })));
+      } else {
+        setSubmitError(
+          err.response?.status === 400 ? t('createTemplate.invalidData') :
+          err.response?.status === 401 ? t('createTemplate.unauthorized') :
+          err.response?.status === 403 ? t('createTemplate.forbidden') :
+          err.response?.status === 429 ? t('createTemplate.rateLimit') :
+          err.response?.data?.message || t('createTemplate.submitError')
+        );
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -354,6 +370,15 @@ function CreateTemplate() {
           >
             {t('createTemplate.retry')}
           </Button>
+        </Alert>
+      )}
+      {serverErrors.length > 0 && (
+        <Alert variant="danger" dismissible onClose={() => setServerErrors([])} aria-live="assertive">
+          <ul>
+            {serverErrors.map((err, idx) => (
+              <li key={idx}>{err.msg}</li>
+            ))}
+          </ul>
         </Alert>
       )}
       <Form onSubmit={handleSubmit} aria-label={t('createTemplate.title')}>
