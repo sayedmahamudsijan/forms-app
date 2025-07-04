@@ -1,8 +1,7 @@
-const express = require('express');
+"const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const http = require('http');
-const path = require('path');
 const multer = require('multer');
 const dotenv = require('dotenv');
 const db = require('./models');
@@ -77,9 +76,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Serve static files from the React build directory
-app.use(express.static(path.join(__dirname, '../frontend/build')));
-
 // Initialize WebSocket
 initSocket(server);
 
@@ -93,7 +89,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/templates', upload.fields([
   { name: 'image', maxCount: 1 },
-  { name: 'questionAttachments', maxCount: 10 },
+  { name: 'questionAttachments', maxCount: 10 }, // Adjust maxCount as needed
 ]), require('./routes/templateRoutes'));
 app.use('/api/forms', require('./routes/formRoutes'));
 app.use('/api/users', require('./routes/userRoutes'));
@@ -102,15 +98,7 @@ app.use('/api/topics', require('./routes/topicRoutes'));
 app.use('/api/tags', require('./routes/tagRoutes'));
 app.use('/api/likes', require('./routes/likeRoutes'));
 
-// Serve React app for all non-API routes
-app.get('*', (req, res) => {
-  console.log(`✅ Serving React app for ${req.originalUrl}`, {
-    timestamp: new Date().toISOString(),
-  });
-  res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
-});
-
-// 404 Handler (should not be reached for client-side routes)
+// 404 Handler
 app.use((req, res, next) => {
   console.error(`❌ Route not found: ${req.method} ${req.originalUrl}`, {
     timestamp: new Date().toISOString(),
@@ -154,4 +142,4 @@ const startServer = async () => {
   }
 };
 
-startServer();
+startServer();"
