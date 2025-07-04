@@ -22,7 +22,7 @@ function CreateTemplate() {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    topic_id: '', // Will be coerced to number on submit
+    topic_id: '',
     is_public: false,
     tags: [],
     permissions: [],
@@ -105,7 +105,7 @@ function CreateTemplate() {
     console.log('✅ Input changed:', { name, value, timestamp: new Date().toISOString() });
     setFormData((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : name === 'topic_id' ? String(value) : value, // Ensure topic_id is stored as string
+      [name]: type === 'checkbox' ? checked : name === 'topic_id' ? String(value) : value,
     }));
     setErrors((prev) => ({ ...prev, [name]: '' }));
     setServerErrors([]);
@@ -276,8 +276,8 @@ function CreateTemplate() {
       const formDataToSend = new FormData();
       formDataToSend.append('title', formData.title);
       formDataToSend.append('description', formData.description || '');
-      formDataToSend.append('topic_id', Number(formData.topic_id)); // Ensure number
-      formDataToSend.append('is_public', formData.is_public.toString()); // Send as string
+      formDataToSend.append('topic_id', Number(formData.topic_id));
+      formDataToSend.append('is_public', formData.is_public.toString());
       formDataToSend.append('tags', JSON.stringify(formData.tags || []));
       formDataToSend.append('permissions', JSON.stringify(formData.permissions || []));
       const questionsToSend = formData.questions.map(q => ({
@@ -678,7 +678,7 @@ function CreateTemplate() {
                                 placeholder={t('createTemplate.maxPlaceholder')}
                               />
                             </Form.Group>
-                            <Form.Group className="mt-2" controlId=`minLabel-${index}`}>
+                            <Form.Group className="mt-2" controlId={`minLabel-${index}`}>
                               <Form.Label>{t('createTemplate.minLabelLabel')}</Form.Label>
                               <Form.Control
                                 type="text"
