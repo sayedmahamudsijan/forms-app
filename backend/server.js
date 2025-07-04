@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const http = require('http');
+const path = require('path');
 const multer = require('multer');
 const dotenv = require('dotenv');
 const db = require('./models');
@@ -14,7 +15,7 @@ const app = express();
 const server = http.createServer(app);
 
 const storage = multer.diskStorage({
-  destination: 'uploads/',
+  destination: 'Uploads/',
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     cb(null, `${file.fieldname}-${uniqueSuffix}${path.extname(file.originalname)}`);
@@ -76,6 +77,9 @@ app.use((req, res, next) => {
   next();
 });
 
+// Serve static files from the React build directory
+app.use(express.static(path.join(__dirname, 'client/build')));
+
 // Initialize WebSocket
 initSocket(server);
 
@@ -89,7 +93,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/templates', upload.fields([
   { name: 'image', maxCount: 1 },
-  { name: 'questionAttachments', maxCount: 10 }, // Adjust maxCount as needed
+  { name: 'questionAttachments', maxCount: 10 },
 ]), require('./routes/templateRoutes'));
 app.use('/api/forms', require('./routes/formRoutes'));
 app.use('/api/users', require('./routes/userRoutes'));
@@ -98,7 +102,15 @@ app.use('/api/topics', require('./routes/topicRoutes'));
 app.use('/api/tags', require('./routes/tagRoutes'));
 app.use('/api/likes', require('./routes/likeRoutes'));
 
-// 404 Handler
+// Serve React app for all non-API routes
+app.get('*', (req, res) => {
+  console.log(`✅ Serving React app for ${req.originalUrl}`, {
+    timestamp: new Date().toISOString(),
+  });
+  res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
+});
+
+// 404 Handler (should not be reached for client-side routes)
 app.use((req, res, next) => {
   console.error(`❌ Route not found: ${req.method} ${req.originalUrl}`, {
     timestamp: new Date().toISOString(),
