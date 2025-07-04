@@ -155,6 +155,7 @@ const createTemplate = [
           headers: req.headers.authorization ? 'Bearer token present' : 'No Bearer token',
           database_query: 'SELECT id, email, name FROM "Users" WHERE id = ' + user_id,
           users_table_count: await User.count({ transaction }),
+          existing_user_ids: (await User.findAll({ attributes: ['id'], transaction })).map(u => u.id),
         });
         await transaction.rollback();
         return res.status(400).json({ success: false, message: `User ID ${user_id} does not exist` });
@@ -166,6 +167,17 @@ const createTemplate = [
       });
 
       // Validate topic_id
+      if (isNaN(parsed_topic_id)) {
+        console.log(`❌ CreateTemplate failed: Topic ID ${topic_id} is not a valid integer`, {
+          timestamp: new Date().toISOString(),
+          topic_id,
+          raw_topic_id: topic_id,
+          topics_table_count: await Topic.count({ transaction }),
+          existing_topic_ids: (await Topic.findAll({ attributes: ['id'], transaction })).map(t => t.id),
+        });
+        await transaction.rollback();
+        return res.status(400).json({ success: false, message: 'Topic ID must be a valid integer' });
+      }
       const topic = await Topic.findByPk(parsed_topic_id, {
         attributes: ['id', 'name'],
         transaction,
@@ -176,6 +188,7 @@ const createTemplate = [
           topic_id: parsed_topic_id,
           raw_topic_id: topic_id,
           topics_table_count: await Topic.count({ transaction }),
+          existing_topic_ids: (await Topic.findAll({ attributes: ['id'], transaction })).map(t => t.id),
         });
         await transaction.rollback();
         return res.status(400).json({ success: false, message: `Topic ID ${parsed_topic_id} does not exist` });
@@ -374,6 +387,8 @@ const createTemplate = [
         headers: req.headers.authorization ? 'Bearer token present' : 'No Bearer token',
         users_table_count: await User.count().catch(() => 'Count failed'),
         topics_table_count: await Topic.count().catch(() => 'Count failed'),
+        existing_user_ids: (await User.findAll({ attributes: ['id'] }).catch(() => [])).map(u => u.id),
+        existing_topic_ids: (await Topic.findAll({ attributes: ['id'] }).catch(() => [])).map(t => t.id),
         sql_error: error.sql || 'No SQL captured',
         timestamp: new Date().toISOString(),
       });
@@ -382,7 +397,6 @@ const createTemplate = [
   },
 ];
 
-// Remaining functions unchanged from provided version
 const updateTemplate = [
   parseJsonFields,
   ...validateUpdateTemplate,
