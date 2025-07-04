@@ -32,6 +32,11 @@ function CreateTemplate() {
       state: 'optional',
       is_visible_in_results: true,
       options: [],
+      min: null,
+      max: null,
+      minLabel: '',
+      maxLabel: '',
+      description: '',
       attachment: null,
     }],
     image: null,
@@ -138,7 +143,7 @@ function CreateTemplate() {
       }
       const newQuestions = [...formData.questions];
       newQuestions[index] = { ...newQuestions[index], attachment: file };
-      setFormData((prev) => ({ ...prev, questions: newQuestions }));
+     EXCLAMATION setFormData((prev) => ({ ...prev, questions: newQuestions }));
       setErrors((prev) => ({ ...prev, [`questionAttachment${index}`]: '' }));
     } else {
       const newQuestions = [...formData.questions];
@@ -156,7 +161,7 @@ function CreateTemplate() {
   };
 
   const handlePermissionChange = (selectedOptions) => {
-    const newPermissions = selectedOptions ? selectedOptions.map(opt => opt.value) : [];
+    const newPermissions = selectedOptions ? selectedOptions.map(opt => Number(opt.value)) : [];
     setFormData((prev) => ({ ...prev, permissions: newPermissions }));
     console.log('✅ Updated permissions:', newPermissions, { timestamp: new Date().toISOString() });
     setServerErrors([]);
@@ -165,12 +170,19 @@ function CreateTemplate() {
   const handleQuestionChange = (index, field, value) => {
     const newQuestions = [...formData.questions];
     if (field === 'options') {
-      newQuestions[index] = { ...newQuestions[index], options: value.split(',').map(o => o.trim()).filter(o => o) };
+      newQuestions[index] = { 
+        ...newQuestions[index], 
+        options: value.split(',').map(o => o.trim()).filter(o => o) 
+      };
     } else if (field === 'type') {
       newQuestions[index] = {
         ...newQuestions[index],
         type: value,
-        options: value === 'select' ? ['Option 1', 'Option 2'] : [],
+        options: ['select', 'multiple_choice', 'dropdown'].includes(value) ? ['Option 1', 'Option 2'] : [],
+        min: value === 'linear_scale' ? 1 : null,
+        max: value === 'linear_scale' ? 5 : null,
+        minLabel: value === 'linear_scale' ? 'Low' : '',
+        maxLabel: value === 'linear_scale' ? 'High' : '',
       };
     } else if (field === 'required') {
       newQuestions[index] = { ...newQuestions[index], state: value ? 'required' : 'optional' };
@@ -190,6 +202,11 @@ function CreateTemplate() {
         state: 'optional',
         is_visible_in_results: true,
         options: [],
+        min: null,
+        max: null,
+        minLabel: '',
+        maxLabel: '',
+        description: '',
         attachment: null,
       }],
     }));
@@ -228,9 +245,16 @@ function CreateTemplate() {
     if (!formData.topic_id) newErrors.topic_id = t('createTemplate.topicRequired');
     if (formData.image && formData.image.size > 5 * 1024 * 1024) newErrors.image = t('createTemplate.imageTooLarge');
     formData.questions.forEach((q, i) => {
-      if (!q.title.trim()) newErrors[`question${i}`] = t('createTemplate.questionsRequired');
-      if (q.type === 'select' && (!q.options || q.options.length < 2)) {
+      if (!q.title.trim()) {
+        newErrors[`question${i}`] = t('createTemplate.questionsRequired');
+      }
+      if (['select', 'multiple_choice', 'dropdown'].includes(q.type) && (!q.options || q.options.length < 2)) {
         newErrors[`question${i}`] = t('createTemplate.optionsRequired');
+      }
+      if (q.type === 'linear_scale') {
+        if (!Number.isInteger(Number(q.min)) || !Number.isInteger(Number(q.max)) || Number(q.min) >= Number(q.max)) {
+          newErrors[`question${i}`] = t('createTemplate.linearScaleInvalid');
+        }
       }
       if (q.attachment && q.attachment.size > 10 * 1024 * 1024) {
         newErrors[`questionAttachment${i}`] = t('createTemplate.attachmentTooLarge');
@@ -248,18 +272,23 @@ function CreateTemplate() {
       const formDataToSend = new FormData();
       formDataToSend.append('title', formData.title);
       formDataToSend.append('description', formData.description || '');
-      formDataToSend.append('topic_id', formData.topic_id);
+      formDataToSend.append('topic_id', Number(formData.topic_id));
       formDataToSend.append('is_public', formData.is_public.toString());
+      // Send tags and permissions as arrays
       formDataToSend.append('tags', JSON.stringify(formData.tags || []));
       formDataToSend.append('permissions', JSON.stringify(formData.permissions || []));
-      // Send questions as a JSON string
+      // Prepare questions with all required fields
       const questionsToSend = formData.questions.map(q => ({
         title: q.title,
         type: q.type,
         state: q.state,
         is_visible_in_results: q.is_visible_in_results,
-        options: q.options || [],
+        options: ['select', 'multiple_choice', 'dropdown'].includes(q.type) ? q.options : [],
         description: q.description || '',
+        min: q.type === 'linear_scale' ? Number(q.min) : null,
+        max: q.type === 'linear_scale' ? Number(q.max) : null,
+        minLabel: q.type === 'linear_scale' ? q.minLabel : null,
+        maxLabel: q.type === 'linear_scale' ? q.maxLabel : null,
       }));
       formDataToSend.append('questions', JSON.stringify(questionsToSend));
       if (formData.image) formDataToSend.append('image', formData.image);
@@ -303,7 +332,6 @@ function CreateTemplate() {
           msg: t(`createTemplate.${e.path}Error`, { defaultValue: e.msg }),
         }));
         setServerErrors(serverErrorsFormatted);
-        // Map server errors to specific fields
         const newFieldErrors = {};
         err.response.data.errors.forEach(e => {
           if (e.path === 'title') newFieldErrors.title = t(`createTemplate.${e.path}Error`, { defaultValue: e.msg });
@@ -554,6 +582,11 @@ function CreateTemplate() {
                             <option value="integer">{t('createTemplate.integer')}</option>
                             <option value="checkbox">{t('createTemplate.checkbox')}</option>
                             <option value="select">{t('createTemplate.select')}</option>
+                            <option value="multiple_choice">{t('createTemplate.multiple_choice')}</option>
+                            <option value="dropdown">{t('createTemplate.dropdown')}</option>
+                            <option value="linear_scale">{t('createTemplate.linear_scale')}</option>
+                            <option value="date">{t('createTemplate.date')}</option>
+                            <option value="time">{t('createTemplate.time')}</option>
                           </Form.Select>
                           <Form.Control
                             value={question.title}
@@ -570,6 +603,15 @@ function CreateTemplate() {
                             {t('createTemplate.remove')}
                           </Button>
                         </InputGroup>
+                        <Form.Group className="mt-2" controlId={`description-${index}`}>
+                          <Form.Label>{t('createTemplate.questionDescription')}</Form.Label>
+                          <Form.Control
+                            as="textarea"
+                            value={question.description}
+                            onChange={(e) => handleQuestionChange(index, 'description', e.target.value)}
+                            placeholder={t('createTemplate.questionDescriptionPlaceholder')}
+                          />
+                        </Form.Group>
                         <Form.Group className="mt-2" controlId={`required-${index}`}>
                           <Form.Check
                             type="checkbox"
@@ -602,7 +644,7 @@ function CreateTemplate() {
                             {errors[`questionAttachment${index}`]}
                           </Form.Control.Feedback>
                         </Form.Group>
-                        {question.type === 'select' && (
+                        {['select', 'multiple_choice', 'dropdown'].includes(question.type) && (
                           <Form.Group className="mt-2" controlId={`options-${index}`}>
                             <Form.Label>{t('createTemplate.optionsLabel')}</Form.Label>
                             <Form.Control
@@ -612,6 +654,46 @@ function CreateTemplate() {
                               aria-label={t('createTemplate.optionsLabel')}
                             />
                           </Form.Group>
+                        )}
+                        {question.type === 'linear_scale' && (
+                          <>
+                            <Form.Group className="mt-2" controlId={`min-${index}`}>
+                              <Form.Label>{t('createTemplate.minLabel')}</Form.Label>
+                              <Form.Control
+                                type="number"
+                                value={question.min || ''}
+                                onChange={(e) => handleQuestionChange(index, 'min', e.target.value)}
+                                placeholder={t('createTemplate.minPlaceholder')}
+                              />
+                            </Form.Group>
+                            <Form.Group className="mt-2" controlId={`max-${index}`}>
+                              <Form.Label>{t('createTemplate.maxLabel')}</Form.Label>
+                              <Form.Control
+                                type="number"
+                                value={question.max || ''}
+                                onChange={(e) => handleQuestionChange(index, 'max', e.target.value)}
+                                placeholder={t('createTemplate.maxPlaceholder')}
+                              />
+                            </Form.Group>
+                            <Form.Group className="mt-2" controlId={`minLabel-${index}`}>
+                              <Form.Label>{t('createTemplate.minLabelLabel')}</Form.Label>
+                              <Form.Control
+                                type="text"
+                                value={question.minLabel}
+                                onChange={(e) => handleQuestionChange(index, 'minLabel', e.target.value)}
+                                placeholder={t('createTemplate.minLabelPlaceholder')}
+                              />
+                            </Form.Group>
+                            <Form.Group className="mt-2" controlId={`maxLabel-${index}`}>
+                              <Form.Label>{t('createTemplate.maxLabelLabel')}</Form.Label>
+                              <Form.Control
+                                type="text"
+                                value={question.maxLabel}
+                                onChange={(e) => handleQuestionChange(index, 'maxLabel', e.target.value)}
+                                placeholder={t('createTemplate.maxLabelPlaceholder')}
+                              />
+                            </Form.Group>
+                          </>
                         )}
                         {errors[`question${index}`] && (
                           <Form.Control.Feedback type="invalid" className="d-block">
