@@ -1,10 +1,9 @@
 const express = require('express');
-const { register, login, getMe, updateMe } = require('../controllers/authController');
+const { register, login, getMe, updateMe, refreshToken } = require('../controllers/authController');
 const authMiddleware = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
-// Note: Add error handling middleware in server.js for uncaught errors
 router.post('/register', ...register, (req, res, next) => {
   console.log(`✅ Accessing POST /api/auth/register`, {
     method: req.method,
@@ -36,6 +35,15 @@ router.put('/me', authMiddleware, ...updateMe, (req, res, next) => {
     url: req.originalUrl,
     timestamp: new Date().toISOString(),
   });
+});
+
+router.post('/refresh-token', authMiddleware, (req, res, next) => {
+  console.log(`✅ Accessing POST /api/auth/refresh-token for User ID ${req.user.id}`, {
+    method: req.method,
+    url: req.originalUrl,
+    timestamp: new Date().toISOString(),
+  });
+  refreshToken(req, res, next);
 });
 
 module.exports = router;
