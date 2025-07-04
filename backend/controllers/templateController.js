@@ -121,8 +121,16 @@ const createTemplate = [
     try {
       const { title, description, topic_id, is_public, questions, tags, permissions } = req.body;
       const user_id = req.user.id;
-      const image = req.files?.image?.[0];
-      let image_url;
+
+      // Validate user exists
+      const user = await User.findByPk(user_id, { transaction });
+      if (!user) {
+        console.log(`❌ CreateTemplate failed: User ID ${user_id} not found`, {
+          timestamp: new Date().toISOString(),
+        });
+        await transaction.rollback();
+        return res.status(400).json({ success: false, message: 'Invalid user ID' });
+      }
 
       const topic = await Topic.findByPk(topic_id, { transaction });
       if (!topic) {
@@ -132,6 +140,9 @@ const createTemplate = [
         await transaction.rollback();
         return res.status(400).json({ success: false, message: 'Invalid topic ID' });
       }
+
+      const image = req.files?.image?.[0];
+      let image_url;
 
       if (image) {
         const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
@@ -209,11 +220,11 @@ const createTemplate = [
         questions.map((q, index) => ({
           template_id: template.id,
           type: q.type,
-          title: q.title,
           description: q.description,
           is_visible_in_results: q.is_visible_in_results ?? true,
           order: index,
           state: q.state ?? 'optional',
+          title: q.title,
           options: ['select', 'multiple_choice', 'dropdown'].includes(q.type) ? q.options : null,
           attachment_url: attachmentUrls[index] || null,
           min: q.type === 'linear_scale' ? q.min : null,
@@ -240,6 +251,21 @@ const createTemplate = [
       );
 
       if (!is_public && permissions.length > 0) {
+        // Validate permission user IDs
+        const permissionUsers = await User.findAll({
+          where: { id: permissions },
+          attributes: ['id'],
+          transaction,
+        });
+        if (permissionUsers.length !== permissions.length) {
+          console.log(`❌ CreateTemplate failed: Invalid user IDs in permissions for user ${user_id}`, {
+            timestamp: new Date().toISOString(),
+            invalid_ids: permissions.filter(id => !permissionUsers.some(u => u.id === id)),
+          });
+          await transaction.rollback();
+          return res.status(400).json({ success: false, message: 'Invalid user IDs in permissions' });
+        }
+
         await TemplatePermission.bulkCreate(
           permissions.map(user_id => ({ template_id: template.id, user_id })),
           { transaction }
@@ -294,8 +320,16 @@ const updateTemplate = [
       const { id } = req.params;
       const { title, description, topic_id, is_public, questions, tags, permissions } = req.body;
       const user_id = req.user.id;
-      const image = req.files?.image?.[0];
-      let image_url = undefined;
+
+      // Validate user exists
+      const user = await User.findByPk(user_id, { transaction });
+      if (!user) {
+        console.log(`❌ UpdateTemplate failed: User ID ${user_id} not found`, {
+          timestamp: new Date().toISOString(),
+        });
+        await transaction.rollback();
+        return res.status(400).json({ success: false, message: 'Invalid user ID' });
+      }
 
       const template = await Template.findByPk(id, { transaction });
       if (!template || (template.user_id !== user_id && !req.user.is_admin)) {
@@ -314,6 +348,9 @@ const updateTemplate = [
         await transaction.rollback();
         return res.status(400).json({ success: false, message: 'Invalid topic ID' });
       }
+
+      const image = req.files?.image?.[0];
+      let image_url = undefined;
 
       if (image) {
         const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
@@ -423,6 +460,21 @@ const updateTemplate = [
 
       await TemplatePermission.destroy({ where: { template_id: id }, transaction });
       if (!is_public && permissions.length > 0) {
+        // Validate permission user IDs
+        const permissionUsers = await User.findAll({
+          where: { id: permissions },
+          attributes: ['id'],
+          transaction,
+        });
+        if (permissionUsers.length !== permissions.length) {
+          console.log(`❌ UpdateTemplate failed: Invalid user IDs in permissions for user ${user_id}`, {
+            timestamp: new Date().toISOString(),
+            invalid_ids: permissions.filter(id => !permissionUsers.some(u => u.id === id)),
+          });
+          await transaction.rollback();
+          return res.status(400).json({ success: false, message: 'Invalid user IDs in permissions' });
+        }
+
         await TemplatePermission.bulkCreate(
           permissions.map(user_id => ({ template_id: id, user_id })),
           { transaction }
