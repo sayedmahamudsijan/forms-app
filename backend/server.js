@@ -6,18 +6,29 @@ const multer = require('multer');
 const dotenv = require('dotenv');
 const db = require('./models');
 const { initSocket } = require('./services/socketService');
+const fs = require('fs');
+const path = require('path');
 
 // Load environment variables
-dotenv.config();
+dotenv.config({ debug: true });
 
 const app = express();
 const server = http.createServer(app);
 
+// Ensure Uploads directory exists
+const uploadDir = path.join(__dirname, 'Uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+  console.log(`✅ Created Uploads directory: ${uploadDir}`, { timestamp: new Date().toISOString() });
+}
+
 const storage = multer.diskStorage({
-  destination: 'uploads/',
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, `${file.fieldname}-${uniqueSuffix}${path.extname(file.originalname)}`);
+    cb(null, `${file.fieldname}-${uniqueSuffix}${path.extname(file.originalName)}`);
   },
 });
 
@@ -47,37 +58,47 @@ const upload = multer({
 
 // Middleware
 app.use(helmet());
-app.use(cors({
-  origin: (origin, callback) => {
-    const allowedOrigins = process.env.CORS_ORIGINS
-      ? process.env.CORS_ORIGINS.split(',').map(o => o.trim()).filter(o => o)
-      : ['http://localhost:3000', 'https://forms-app-9zln.onrender.com', 'https://forms-app-sayed-mahmuds-projects-2f91c151.vercel.app'];
-    console.log(`✅ CORS Request Origin: ${origin || 'none'}`, {
-      allowedOrigins,
-      timestamp: new Date().toISOString(),
-    });
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      const allowedOrigins = process.env.CORS_ORIGINS
+        ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim()).filter((o) => o)
+        : ['http://localhost:3000', 'https://forms-app-9zln.onrender.com'];
+      console.log(`✅ CORS Request Origin: ${origin || 'none'}`, {
+        allowedOrigins,
+        timestamp: new Date().toISOString(),
+      });
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+  })
+);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use((req, res, next) => {
   console.log(`✅ Request: ${req.method} ${req.originalUrl}`, {
-    userId: req.user?.id,
+    userId: req.user?.id || 'unauthenticated',
     timestamp: new Date().toISOString(),
   });
   next();
 });
 
-// Initialize WebSocket
-initSocket(server);
+// Initialize WebSocket with error handling
+try {
+  initSocket(server);
+  console.log(`✅ WebSocket initialized`, { timestamp: new Date().toISOString() });
+} catch (err) {
+  console.error(`❌ WebSocket initialization failed: ${err.message}`, {
+    stack: err.stack,
+    timestamp: new Date().toISOString(),
+  });
+}
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -87,10 +108,14 @@ app.get('/api/health', (req, res) => {
 
 // API Routes
 app.use('/api/auth', require('./routes/authRoutes'));
-app.use('/api/templates', upload.fields([
-  { name: 'image', maxCount: 1 },
-  { name: 'questionAttachments', maxCount: 10 }, // Adjust maxCount as needed
-]), require('./routes/templateRoutes'));
+app.use(
+  '/api/templates',
+  upload.fields([
+    { name: 'image', maxCount: 1 },
+    { name: 'questionAttachments', maxCount: 10 },
+  ]),
+  require('./routes/templateRoutes')
+);
 app.use('/api/forms', require('./routes/formRoutes'));
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/comments', require('./routes/commentRoutes'));
@@ -113,10 +138,10 @@ app.use((err, req, res, next) => {
     stack: err.stack,
     method: req.method,
     url: req.originalUrl,
-    userId: req.user?.id,
+    userId: req.user?.id || 'unauthenticated',
     timestamp: new Date().toISOString(),
   });
-  res.status(500).json({ success: false, message: 'Server error', error: err.message });
+  res.status(err.status || 500).json({ success: false, message: err.message || 'Server error' });
 });
 
 // Start server
@@ -124,9 +149,11 @@ const PORT = process.env.PORT || 5000;
 const startServer = async () => {
   try {
     console.log('✅ Starting server', { timestamp: new Date().toISOString() });
-    // Verify database connection
+    // Test database connection
     await db.sequelize.authenticate();
     console.log('✅ Database connection successful', { timestamp: new Date().toISOString() });
+    // Optional: Sync database (use with caution in production)
+    // await db.sequelize.sync({ force: false });
     server.listen(PORT, () => {
       console.log(`✅ Server running on http://localhost:${PORT}`, { timestamp: new Date().toISOString() });
     });
@@ -136,10 +163,11 @@ const startServer = async () => {
       stack: err.stack,
       timestamp: new Date().toISOString(),
     });
-    console.warn('⚠️ Server failed to start due to database error.', {
-      timestamp: new Date().toISOString(),
-    });
+    console.warn('⚠️ Retrying database connection in 5 seconds...', { timestamp: new Date().toISOString() });
+    setTimeout(startServer, 5000); // Retry after 5 seconds
   }
 };
 
 startServer();
+
+module.exports = app;
