@@ -122,6 +122,7 @@ const createTemplate = [
       console.log(`❌ CreateTemplate failed: Invalid or missing user authentication`, {
         timestamp: new Date().toISOString(),
         user: req.user,
+        headers: req.headers.authorization ? 'Bearer token present' : 'No Bearer token',
       });
       return res.status(401).json({ success: false, message: 'User not authenticated' });
     }
@@ -129,28 +130,61 @@ const createTemplate = [
     const transaction = await Template.sequelize.transaction();
     try {
       const { title, description, topic_id, is_public, questions, tags, permissions } = req.body;
-      const user_id = req.user.id;
+      const user_id = parseInt(req.user.id, 10); // Ensure user_id is an integer
+      const parsed_topic_id = parseInt(topic_id, 10); // Ensure topic_id is an integer
+
+      // Log request details
+      console.log(`ℹ️ CreateTemplate attempt: User ID ${user_id}, Topic ID ${parsed_topic_id}`, {
+        timestamp: new Date().toISOString(),
+        raw_user_id: req.user.id,
+        raw_topic_id: topic_id,
+        body: req.body,
+        headers: req.headers.authorization ? 'Bearer token present' : 'No Bearer token',
+      });
 
       // Validate user exists
-      const user = await User.findByPk(user_id, { transaction });
+      const user = await User.findByPk(user_id, {
+        attributes: ['id', 'email', 'name'],
+        transaction,
+      });
       if (!user) {
-        console.log(`❌ CreateTemplate failed: User ID ${user_id} not found`, {
+        console.log(`❌ CreateTemplate failed: User ID ${user_id} not found in Users table`, {
           timestamp: new Date().toISOString(),
           user_id,
+          req_user: req.user,
+          headers: req.headers.authorization ? 'Bearer token present' : 'No Bearer token',
+          database_query: 'SELECT id, email, name FROM "Users" WHERE id = ' + user_id,
+          users_table_count: await User.count({ transaction }),
         });
         await transaction.rollback();
-        return res.status(400).json({ success: false, message: 'Invalid user ID' });
+        return res.status(400).json({ success: false, message: `User ID ${user_id} does not exist` });
       }
 
-      const topic = await Topic.findByPk(topic_id, { transaction });
+      // Log successful user validation
+      console.log(`✅ User validated: ID ${user_id}, Email: ${user.email}, Name: ${user.name}`, {
+        timestamp: new Date().toISOString(),
+      });
+
+      // Validate topic_id
+      const topic = await Topic.findByPk(parsed_topic_id, {
+        attributes: ['id', 'name'],
+        transaction,
+      });
       if (!topic) {
-        console.log(`❌ CreateTemplate failed: Topic ID ${topic_id} not found for user ${user_id}`, {
+        console.log(`❌ CreateTemplate failed: Topic ID ${parsed_topic_id} not found in Topics table`, {
           timestamp: new Date().toISOString(),
-          topic_id,
+          topic_id: parsed_topic_id,
+          raw_topic_id: topic_id,
+          topics_table_count: await Topic.count({ transaction }),
         });
         await transaction.rollback();
-        return res.status(400).json({ success: false, message: 'Invalid topic ID' });
+        return res.status(400).json({ success: false, message: `Topic ID ${parsed_topic_id} does not exist` });
       }
+
+      // Log successful topic validation
+      console.log(`✅ Topic validated: ID ${parsed_topic_id}, Name: ${topic.name}`, {
+        timestamp: new Date().toISOString(),
+      });
 
       const image = req.files?.image?.[0];
       let image_url;
@@ -223,15 +257,31 @@ const createTemplate = [
         attachmentUrls[i] = uploadResult.url;
       }
 
+      // Log before Template.create to capture input
+      console.log(`ℹ️ Attempting Template.create: user_id=${user_id}, topic_id=${parsed_topic_id}`, {
+        timestamp: new Date().toISOString(),
+        template_data: { user_id, title, description, topic_id: parsed_topic_id, is_public },
+      });
+
+      // Enable SQL logging for Template.create
       const template = await Template.create({
         user_id,
         title,
         description,
         image_url,
-        topic_id,
+        topic_id: parsed_topic_id,
         is_public,
         search_vector: Sequelize.fn('to_tsvector', 'english', `${title} ${description || ''}`),
-      }, { transaction });
+      }, {
+        transaction,
+        logging: (sql) => {
+          console.log(`ℹ️ Template.create SQL: ${sql}`, {
+            timestamp: new Date().toISOString(),
+            user_id,
+            topic_id: parsed_topic_id,
+          });
+        }
+      });
 
       await TemplateQuestion.bulkCreate(
         questions.map((q, index) => ({
@@ -308,7 +358,7 @@ const createTemplate = [
       await transaction.commit();
       console.log(`✅ Template created: ID ${template.id}, Title: ${title}, User ID ${user_id}`, {
         timestamp: new Date().toISOString(),
-        topic_id,
+        topic_id: parsed_topic_id,
         is_public,
         permissions,
       });
@@ -321,6 +371,10 @@ const createTemplate = [
         error: error.message,
         stack: error.stack,
         body: req.body,
+        headers: req.headers.authorization ? 'Bearer token present' : 'No Bearer token',
+        users_table_count: await User.count().catch(() => 'Count failed'),
+        topics_table_count: await Topic.count().catch(() => 'Count failed'),
+        sql_error: error.sql || 'No SQL captured',
         timestamp: new Date().toISOString(),
       });
       return res.status(500).json({ success: false, message: 'Server error', error: error.message });
@@ -328,6 +382,7 @@ const createTemplate = [
   },
 ];
 
+// Remaining functions unchanged from provided version
 const updateTemplate = [
   parseJsonFields,
   ...validateUpdateTemplate,
@@ -345,7 +400,7 @@ const updateTemplate = [
     try {
       const { id } = req.params;
       const { title, description, topic_id, is_public, questions, tags, permissions } = req.body;
-      const user_id = req.user.id;
+      const user_id = parseInt(req.user.id, 10); // Ensure integer
 
       // Validate user exists
       const user = await User.findByPk(user_id, { transaction });
@@ -368,7 +423,7 @@ const updateTemplate = [
         return res.status(403).json({ success: false, message: 'Unauthorized' });
       }
 
-      const topic = await Topic.findByPk(topic_id, { transaction });
+      const topic = await Topic.findByPk(parseInt(topic_id, 10), { transaction });
       if (!topic) {
         console.log(`❌ UpdateTemplate failed: Topic ID ${topic_id} not found for user ${user_id}`, {
           timestamp: new Date().toISOString(),
@@ -379,7 +434,7 @@ const updateTemplate = [
       }
 
       const image = req.files?.image?.[0];
-      let image_url = undefined;
+      let image_url;
 
       if (image) {
         const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
@@ -453,7 +508,7 @@ const updateTemplate = [
         {
           title,
           description,
-          topic_id,
+          topic_id: parseInt(topic_id, 10),
           is_public,
           image_url: image_url !== undefined ? image_url : template.image_url,
           search_vector: Sequelize.fn('to_tsvector', 'english', `${title} ${description || ''}`),
@@ -544,11 +599,12 @@ const updateTemplate = [
       await transaction.rollback();
       console.error('❌ Error updating template:', {
         template_id: req.params.id,
-        user_id: req.user.id,
+        user_id: req.user?.id,
         topic_id: req.body.topic_id,
         error: error.message,
         stack: error.stack,
         body: req.body,
+        sql_error: error.sql || 'No SQL captured',
         timestamp: new Date().toISOString(),
       });
       return res.status(500).json({ success: false, message: 'Server error', error: error.message });
@@ -697,14 +753,14 @@ const deleteTemplate = [
 
     try {
       const { id } = req.params;
-      const user_id = req.user.id;
+      const user_id = parseInt(req.user.id, 10); // Ensure integer
 
       const template = await Template.findByPk(id);
       if (!template || (template.user_id !== user_id && !req.user.is_admin)) {
         console.log(`❌ DeleteTemplate failed: Unauthorized for template ${id}, user ${user_id}`, {
-        timestamp: new Date().toISOString(),
-        template_id: id,
-      });
+          timestamp: new Date().toISOString(),
+          template_id: id,
+        });
         return res.status(403).json({ success: false, message: 'Unauthorized' });
       }
 
@@ -716,7 +772,7 @@ const deleteTemplate = [
     } catch (error) {
       console.error('❌ Error deleting template:', {
         template_id: req.params.id,
-        user_id: req.user.id,
+        user_id: req.user?.id,
         error: error.message,
         stack: error.stack,
         timestamp: new Date().toISOString(),
@@ -739,7 +795,7 @@ const getTemplate = [
 
     try {
       const { id } = req.params;
-      const user_id = req.user?.id;
+      const user_id = parseInt(req.user?.id, 10); // Ensure integer
 
       const template = await Template.findByPk(id, {
         include: [
@@ -807,7 +863,7 @@ const getResults = [
 
     try {
       const { id } = req.params;
-      const user_id = req.user.id;
+      const user_id = parseInt(req.user.id, 10); // Ensure integer
 
       const template = await Template.findByPk(id, {
         attributes: ['id', 'user_id', 'is_public'],
@@ -859,7 +915,7 @@ const getResults = [
     } catch (error) {
       console.error('❌ Error fetching results:', {
         template_id: req.params.id,
-        user_id: req.user.id,
+        user_id: req.user?.id,
         error: error.message,
         stack: error.stack,
         timestamp: new Date().toISOString(),
