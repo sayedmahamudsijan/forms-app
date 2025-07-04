@@ -22,11 +22,13 @@ const validateCreateTemplate = [
     .isArray({ min: 1 })
     .withMessage('Questions must be a non-empty array')
     .custom(questions =>
-      questions.every(q => q.type && q.title && ['string', 'text', 'integer', 'checkbox', 'select'].includes(q.type))
+      questions.every(q => q.type && q.title && ['string', 'text', 'integer', 'checkbox', 'select', 'multiple_choice', 'dropdown', 'linear_scale', 'date', 'time'].includes(q.type))
     )
-    .withMessage('Each question must have a valid type (string, text, integer, checkbox, select) and title')
-    .custom(questions => questions.every(q => q.type !== 'select' || (Array.isArray(q.options) && q.options.length > 0)))
-    .withMessage('Select questions must have a non-empty array of options'),
+    .withMessage('Each question must have a valid type (string, text, integer, checkbox, select, multiple_choice, dropdown, linear_scale, date, time) and title')
+    .custom(questions => questions.every(q => ['select', 'multiple_choice', 'dropdown'].includes(q.type) ? (Array.isArray(q.options) && q.options.length >= 2) : true))
+    .withMessage('Select, multiple_choice, or dropdown questions must have at least two options')
+    .custom(questions => questions.every(q => q.type !== 'linear_scale' || (q.min != null && q.max != null && Number.isInteger(q.min) && Number.isInteger(q.max) && q.min < q.max)))
+    .withMessage('Linear scale questions must have valid integer min and max values, with min less than max'),
   body('tags').isArray().withMessage('Tags must be an array'),
   body('permissions').isArray().withMessage('Permissions must be an array'),
 ];
@@ -34,18 +36,20 @@ const validateCreateTemplate = [
 const validateUpdateTemplate = [
   param('id').isInt().withMessage('Template ID must be an integer'),
   body('title').trim().notEmpty().withMessage('Title is required'),
-  body('version').isInt().withMessage('Version must be an integer'),
+  body('description').trim().optional(),
   body('topic_id').isInt().withMessage('Topic ID must be an integer'),
   body('is_public').isBoolean().withMessage('is_public must be boolean'),
   body('questions')
     .isArray({ min: 1 })
     .withMessage('Questions must be a non-empty array')
     .custom(questions =>
-      questions.every(q => q.type && q.title && ['string', 'text', 'integer', 'checkbox', 'select'].includes(q.type))
+      questions.every(q => q.type && q.title && ['string', 'text', 'integer', 'checkbox', 'select', 'multiple_choice', 'dropdown', 'linear_scale', 'date', 'time'].includes(q.type))
     )
-    .withMessage('Each question must have a valid type (string, text, integer, checkbox, select) and title')
-    .custom(questions => questions.every(q => q.type !== 'select' || (Array.isArray(q.options) && q.options.length > 0)))
-    .withMessage('Select questions must have a non-empty array of options'),
+    .withMessage('Each question must have a valid type (string, text, integer, checkbox, select, multiple_choice, dropdown, linear_scale, date, time) and title')
+    .custom(questions => questions.every(q => ['select', 'multiple_choice', 'dropdown'].includes(q.type) ? (Array.isArray(q.options) && q.options.length >= 2) : true))
+    .withMessage('Select, multiple_choice, or dropdown questions must have at least two options')
+    .custom(questions => questions.every(q => q.type !== 'linear_scale' || (q.min != null && q.max != null && Number.isInteger(q.min) && Number.isInteger(q.max) && q.min < q.max)))
+    .withMessage('Linear scale questions must have valid integer min and max values, with min less than max'),
   body('tags').isArray().withMessage('Tags must be an array'),
   body('permissions').isArray().withMessage('Permissions must be an array'),
 ];
@@ -70,7 +74,7 @@ const createTemplate = [
     try {
       const { title, description, topic_id, is_public, questions, tags, permissions } = req.body;
       const user_id = req.user.id;
-      const image = req.files?.image?.[0]; // From upload.fields
+      const image = req.files?.image?.[0];
       let image_url;
 
       const topic = await Topic.findByPk(topic_id, { transaction });
@@ -110,7 +114,6 @@ const createTemplate = [
         image_url = uploadResult.url;
       }
 
-      // Handle question-level attachments
       const questionAttachments = req.files?.questionAttachments || [];
       const attachmentUrls = [];
       const allowedAttachmentTypes = [
@@ -164,8 +167,12 @@ const createTemplate = [
           is_visible_in_results: q.is_visible_in_results ?? true,
           order: index,
           state: q.state ?? 'optional',
-          options: q.type === 'select' ? q.options : null,
+          options: ['select', 'multiple_choice', 'dropdown'].includes(q.type) ? q.options : null,
           attachment_url: attachmentUrls[index] || null,
+          min: q.type === 'linear_scale' ? q.min : null,
+          max: q.type === 'linear_scale' ? q.max : null,
+          min_label: q.type === 'linear_scale' ? q.minLabel : null,
+          max_label: q.type === 'linear_scale' ? q.maxLabel : null,
         })),
         { transaction }
       );
@@ -197,7 +204,7 @@ const createTemplate = [
           { model: User, as: 'User', attributes: ['id', 'name'], required: false },
           { model: TemplateTag, as: 'TemplateTags', include: [{ model: Tag, as: 'Tag', attributes: ['id', 'name'] }], required: false },
           { model: TemplatePermission, as: 'TemplatePermissions', required: false },
-          { model: TemplateQuestion, as: 'TemplateQuestions', attributes: ['id', 'type', 'title', 'description', 'is_visible_in_results', 'order', 'state', 'options', 'attachment_url'] },
+          { model: TemplateQuestion, as: 'TemplateQuestions', attributes: ['id', 'type', 'title', 'description', 'is_visible_in_results', 'order', 'state', 'options', 'attachment_url', 'min', 'max', 'min_label', 'max_label'] },
           { model: Topic, as: 'Topic', attributes: ['id', 'name'], required: false },
         ],
         transaction
@@ -237,7 +244,7 @@ const updateTemplate = [
     const transaction = await Template.sequelize.transaction();
     try {
       const { id } = req.params;
-      const { title, description, topic_id, is_public, questions, tags, permissions, version } = req.body;
+      const { title, description, topic_id, is_public, questions, tags, permissions } = req.body;
       const user_id = req.user.id;
       const image = req.files?.image?.[0];
       let image_url = undefined;
@@ -249,14 +256,6 @@ const updateTemplate = [
         });
         await transaction.rollback();
         return res.status(403).json({ success: false, message: 'Unauthorized' });
-      }
-
-      if (template.version !== parseInt(version, 10)) {
-        console.log(`❌ UpdateTemplate failed: Version conflict for template ${id}, user ${user_id}`, {
-          timestamp: new Date().toISOString(),
-        });
-        await transaction.rollback();
-        return res.status(409).json({ success: false, message: 'Version conflict' });
       }
 
       const topic = await Topic.findByPk(topic_id, { transaction });
@@ -296,7 +295,6 @@ const updateTemplate = [
         image_url = uploadResult.url;
       }
 
-      // Handle question-level attachments
       const questionAttachments = req.files?.questionAttachments || [];
       const attachmentUrls = [];
       const allowedAttachmentTypes = [
@@ -338,7 +336,6 @@ const updateTemplate = [
           topic_id,
           is_public,
           image_url: image_url !== undefined ? image_url : template.image_url,
-          version: template.version + 1,
           search_vector: Sequelize.fn('to_tsvector', 'english', `${title} ${description || ''}`),
         },
         { where: { id }, transaction }
@@ -354,8 +351,12 @@ const updateTemplate = [
           is_visible_in_results: q.is_visible_in_results ?? true,
           order: index,
           state: q.state ?? 'optional',
-          options: q.type === 'select' ? q.options : null,
+          options: ['select', 'multiple_choice', 'dropdown'].includes(q.type) ? q.options : null,
           attachment_url: attachmentUrls[index] || null,
+          min: q.type === 'linear_scale' ? q.min : null,
+          max: q.type === 'linear_scale' ? q.max : null,
+          min_label: q.type === 'linear_scale' ? q.minLabel : null,
+          max_label: q.type === 'linear_scale' ? q.maxLabel : null,
         })),
         { transaction }
       );
@@ -385,7 +386,7 @@ const updateTemplate = [
           { model: User, as: 'User', attributes: ['id', 'name'], required: false },
           { model: TemplateTag, as: 'TemplateTags', include: [{ model: Tag, as: 'Tag', attributes: ['id', 'name'] }], required: false },
           { model: TemplatePermission, as: 'TemplatePermissions', required: false },
-          { model: TemplateQuestion, as: 'TemplateQuestions', attributes: ['id', 'type', 'title', 'description', 'is_visible_in_results', 'order', 'state', 'options', 'attachment_url'] },
+          { model: TemplateQuestion, as: 'TemplateQuestions', attributes: ['id', 'type', 'title', 'description', 'is_visible_in_results', 'order', 'state', 'options', 'attachment_url', 'min', 'max', 'min_label', 'max_label'] },
           { model: Topic, as: 'Topic', attributes: ['id', 'name'], required: false },
         ],
         transaction
@@ -600,7 +601,7 @@ const getTemplate = [
           { model: User, as: 'User', attributes: ['id', 'name'], required: false },
           { model: TemplateTag, as: 'TemplateTags', include: [{ model: Tag, as: 'Tag', attributes: ['id', 'name'] }], required: false },
           { model: TemplatePermission, as: 'TemplatePermissions', required: false },
-          { model: TemplateQuestion, as: 'TemplateQuestions', attributes: ['id', 'type', 'title', 'description', 'is_visible_in_results', 'order', 'state', 'options', 'attachment_url'] },
+          { model: TemplateQuestion, as: 'TemplateQuestions', attributes: ['id', 'type', 'title', 'description', 'is_visible_in_results', 'order', 'state', 'options', 'attachment_url', 'min', 'max', 'min_label', 'max_label'] },
           { model: Topic, as: 'Topic', attributes: ['id', 'name'], required: false },
         ],
       });
@@ -622,19 +623,12 @@ const getTemplate = [
         return res.status(403).json({ success: false, message: 'Access denied' });
       }
 
-      const likeCount = await Form.count({ where: { template_id: id, is_like: true } });
-      const userLiked = user_id ? await Form.findOne({ where: { template_id: id, user_id, is_like: true } }) : false;
-
       console.log(`✅ Fetched template: ID ${id}, User ID ${user_id || 'unauthenticated'}`, {
         timestamp: new Date().toISOString(),
       });
       return res.json({
         success: true,
-        template: {
-          ...template.toJSON(),
-          like_count: likeCount,
-          user_liked: !!userLiked,
-        },
+        template: template.toJSON(),
       });
     } catch (error) {
       console.error('❌ Error fetching template:', {
@@ -684,6 +678,7 @@ const getResults = [
 
       const forms = await Form.findAll({
         where: { template_id: id },
+        attributes: ['id', 'user_id', 'created_at'],
         include: [
           {
             model: FormAnswer,
@@ -692,13 +687,14 @@ const getResults = [
               { 
                 model: TemplateQuestion, 
                 as: 'TemplateQuestion', 
-                attributes: ['id', 'title', 'is_visible_in_results', 'attachment_url'], 
+                attributes: ['id', 'title', 'is_visible_in_results', 'attachment_url', 'type', 'options', 'min', 'max', 'min_label', 'max_label'], 
                 where: { is_visible_in_results: true },
                 required: false 
               }
             ],
             attributes: ['id', 'value'],
           },
+          { model: User, as: 'User', attributes: ['id', 'name', 'email'], required: false },
         ],
         order: [['created_at', 'DESC']],
       });
