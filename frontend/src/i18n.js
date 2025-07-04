@@ -259,6 +259,8 @@ const resources = {
         tableLabel: 'Templates table',
         tableCaption: 'List of templates',
         noTopic: 'No topic assigned',
+        noAttachments: 'No attachments available', 
+        invalidTemplateId: 'Invalid template ID', 
       },
       form: {
         title: 'Fill Form: {templateTitle}',
@@ -684,6 +686,8 @@ const resources = {
         tableLabel: 'Tabla de plantillas',
         tableCaption: 'Lista de plantillas',
         noTopic: 'Sin tema asignado',
+        noAttachments: 'No hay adjuntos disponibles',
+        invalidTemplateId: 'ID de plantilla inválido',
       },
       form: {
         title: 'Completar Formulario: {templateTitle}',
