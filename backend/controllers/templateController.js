@@ -117,6 +117,15 @@ const createTemplate = [
       return res.status(400).json({ success: false, errors: errors.array() });
     }
 
+    // Add explicit check for req.user and req.user.id
+    if (!req.user || !req.user.id || isNaN(req.user.id)) {
+      console.log(`❌ CreateTemplate failed: Invalid or missing user authentication`, {
+        timestamp: new Date().toISOString(),
+        user: req.user,
+      });
+      return res.status(401).json({ success: false, message: 'User not authenticated' });
+    }
+
     const transaction = await Template.sequelize.transaction();
     try {
       const { title, description, topic_id, is_public, questions, tags, permissions } = req.body;
@@ -307,7 +316,7 @@ const createTemplate = [
     } catch (error) {
       await transaction.rollback();
       console.error('❌ Error creating template:', {
-        user_id: req.user.id,
+        user_id: req.user?.id,
         topic_id: req.body.topic_id,
         error: error.message,
         stack: error.stack,
@@ -693,9 +702,9 @@ const deleteTemplate = [
       const template = await Template.findByPk(id);
       if (!template || (template.user_id !== user_id && !req.user.is_admin)) {
         console.log(`❌ DeleteTemplate failed: Unauthorized for template ${id}, user ${user_id}`, {
-          timestamp: new Date().toISOString(),
-          template_id: id,
-        });
+        timestamp: new Date().toISOString(),
+        template_id: id,
+      });
         return res.status(403).json({ success: false, message: 'Unauthorized' });
       }
 
