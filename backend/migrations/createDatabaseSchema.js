@@ -58,7 +58,7 @@ module.exports = {
       updated_at: { type: Sequelize.DATE, allowNull: false },
     });
 
-    // Template Questions
+    // Create TemplateQuestions table
     await queryInterface.createTable('template_questions', {
       id: { type: Sequelize.INTEGER, autoIncrement: true, primaryKey: true },
       template_id: {
@@ -68,11 +68,11 @@ module.exports = {
         onDelete: 'CASCADE',
       },
       type: {
-        type: Sequelize.ENUM('string', 'text', 'integer', 'checkbox', 'select'),
+        type: Sequelize.ENUM('string', 'text', 'integer', 'checkbox', 'select', 'multiple_choice', 'dropdown', 'linear_scale', 'date', 'time'),
         allowNull: false,
       },
       title: { type: Sequelize.STRING, allowNull: false },
-      description: { type: Sequelize.TEXT },
+      description: { type: Sequelize.TEXT, allowNull: true },
       is_visible_in_results: { type: Sequelize.BOOLEAN, defaultValue: true },
       order: { type: Sequelize.INTEGER, allowNull: false },
       state: {
@@ -80,9 +80,14 @@ module.exports = {
         defaultValue: 'optional',
       },
       options: { type: Sequelize.JSON, allowNull: true },
+      min: { type: Sequelize.INTEGER, allowNull: true },
+      max: { type: Sequelize.INTEGER, allowNull: true },
+      minLabel: { type: Sequelize.STRING, allowNull: true },
+      maxLabel: { type: Sequelize.STRING, allowNull: true },
+      attachment_url: { type: Sequelize.STRING, allowNull: true },
     });
 
-    // Forms
+    // Create Forms table
     await queryInterface.createTable('forms', {
       id: { type: Sequelize.INTEGER, autoIncrement: true, primaryKey: true },
       template_id: {
@@ -103,7 +108,7 @@ module.exports = {
       updated_at: { type: Sequelize.DATE, allowNull: false },
     });
 
-    // Form Answers
+    // Create FormAnswers table
     await queryInterface.createTable('form_answers', {
       id: { type: Sequelize.INTEGER, autoIncrement: true, primaryKey: true },
       form_id: {
@@ -123,7 +128,7 @@ module.exports = {
       updated_at: { type: Sequelize.DATE, allowNull: false },
     });
 
-    // Comments
+    // Create Comments table
     await queryInterface.createTable('comments', {
       id: { type: Sequelize.INTEGER, autoIncrement: true, primaryKey: true },
       template_id: {
@@ -143,7 +148,7 @@ module.exports = {
       updated_at: { type: Sequelize.DATE, allowNull: false },
     });
 
-    // Likes
+    // Create Likes table
     await queryInterface.createTable('likes', {
       template_id: {
         type: Sequelize.INTEGER,
@@ -163,7 +168,7 @@ module.exports = {
       updated_at: { type: Sequelize.DATE, allowNull: false },
     });
 
-    // Template Tags
+    // Create TemplateTags table
     await queryInterface.createTable('template_tags', {
       template_id: {
         type: Sequelize.INTEGER,
@@ -181,7 +186,7 @@ module.exports = {
       },
     });
 
-    // Template Permissions
+    // Create TemplatePermissions table
     await queryInterface.createTable('template_permissions', {
       id: { type: Sequelize.INTEGER, autoIncrement: true, primaryKey: true },
       template_id: {
@@ -200,10 +205,158 @@ module.exports = {
       updated_at: { type: Sequelize.DATE, allowNull: false },
     });
 
-    // Add necessary indexes
-    await queryInterface.addIndex('templates', ['user_id']);
-    await queryInterface.addIndex('templates', ['topic_id']);
-    await queryInterface.addIndex('templates', ['search_vector'], { using: 'GIN' });
+    // Add indexes with error handling
+    try {
+      await queryInterface.addIndex('users', ['email'], { unique: true, name: 'users_email_unique' });
+    } catch (error) {
+      console.warn(`⚠️ Skipping index creation for users.email: ${error.message}`, {
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    try {
+      await queryInterface.addIndex('topics', ['name'], { unique: true, name: 'topics_name_unique' });
+    } catch (error) {
+      console.warn(`⚠️ Skipping index creation for topics.name: ${error.message}`, {
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    try {
+      await queryInterface.addIndex('tags', ['name'], { unique: true, name: 'tags_name_unique' });
+    } catch (error) {
+      console.warn(`⚠️ Skipping index creation for tags.name: ${error.message}`, {
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    try {
+      await queryInterface.addIndex('templates', ['user_id'], { name: 'templates_user_id_idx' });
+    } catch (error) {
+      console.warn(`⚠️ Skipping index creation for templates.user_id: ${error.message}`, {
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    try {
+      await queryInterface.addIndex('templates', ['topic_id'], { name: 'templates_topic_id_idx' });
+    } catch (error) {
+      console.warn(`⚠️ Skipping index creation for templates.topic_id: ${error.message}`, {
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    try {
+      await queryInterface.addIndex('templates', ['search_vector'], { name: 'template_search_idx', using: 'GIN' });
+    } catch (error) {
+      console.warn(`⚠️ Skipping index creation for templates.search_vector: ${error.message}`, {
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    try {
+      await queryInterface.addIndex('template_questions', ['template_id'], { name: 'template_questions_template_id_idx' });
+    } catch (error) {
+      console.warn(`⚠️ Skipping index creation for template_questions.template_id: ${error.message}`, {
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    try {
+      await queryInterface.addIndex('forms', ['template_id'], { name: 'forms_template_id_idx' });
+    } catch (error) {
+      console.warn(`⚠️ Skipping index creation for forms.template_id: ${error.message}`, {
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    try {
+      await queryInterface.addIndex('forms', ['user_id'], { name: 'forms_user_id_idx' });
+    } catch (error) {
+      console.warn(`⚠️ Skipping index creation for forms.user_id: ${error.message}`, {
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    try {
+      await queryInterface.addIndex('form_answers', ['form_id'], { name: 'form_answers_form_id_idx' });
+    } catch (error) {
+      console.warn(`⚠️ Skipping index creation for form_answers.form_id: ${error.message}`, {
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    try {
+      await queryInterface.addIndex('form_answers', ['question_id'], { name: 'form_answers_question_id_idx' });
+    } catch (error) {
+      console.warn(`⚠️ Skipping index creation for form_answers.question_id: ${error.message}`, {
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    try {
+      await queryInterface.addIndex('comments', ['template_id'], { name: 'comments_template_id_idx' });
+    } catch (error) {
+      console.warn(`⚠️ Skipping index creation for comments.template_id: ${error.message}`, {
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    try {
+      await queryInterface.addIndex('comments', ['user_id'], { name: 'comments_user_id_idx' });
+    } catch (error) {
+      console.warn(`⚠️ Skipping index creation for comments.user_id: ${error.message}`, {
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    try {
+      await queryInterface.addIndex('likes', ['template_id'], { name: 'likes_template_id_idx' });
+    } catch (error) {
+      console.warn(`⚠️ Skipping index creation for likes.template_id: ${error.message}`, {
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    try {
+      await queryInterface.addIndex('likes', ['user_id'], { name: 'likes_user_id_idx' });
+    } catch (error) {
+      console.warn(`⚠️ Skipping index creation for likes.user_id: ${error.message}`, {
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    try {
+      await queryInterface.addIndex('template_tags', ['template_id'], { name: 'template_tags_template_id_idx' });
+    } catch (error) {
+      console.warn(`⚠️ Skipping index creation for template_tags.template_id: ${error.message}`, {
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    try {
+      await queryInterface.addIndex('template_tags', ['tag_id'], { name: 'template_tags_tag_id_idx' });
+    } catch (error) {
+      console.warn(`⚠️ Skipping index creation for template_tags.tag_id: ${error.message}`, {
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    try {
+      await queryInterface.addIndex('template_permissions', ['template_id'], { name: 'template_permissions_template_id_idx' });
+    } catch (error) {
+      console.warn(`⚠️ Skipping index creation for template_permissions.template_id: ${error.message}`, {
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    try {
+      await queryInterface.addIndex('template_permissions', ['user_id'], { name: 'template_permissions_user_id_idx' });
+    } catch (error) {
+      console.warn(`⚠️ Skipping index creation for template_permissions.user_id: ${error.message}`, {
+        timestamp: new Date().toISOString(),
+      });
+    }
   },
 
   async down(queryInterface) {
@@ -218,5 +371,5 @@ module.exports = {
     await queryInterface.dropTable('tags');
     await queryInterface.dropTable('topics');
     await queryInterface.dropTable('users');
-  },
+  }
 };
