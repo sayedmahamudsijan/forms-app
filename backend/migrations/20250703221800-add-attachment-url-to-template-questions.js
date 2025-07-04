@@ -76,13 +76,16 @@ module.exports = {
         BEGIN
           IF NOT EXISTS (
             SELECT 1
-            FROM pg_type
-            WHERE typname = 'enum_template_questions_type'
-            AND enumlabels @> ARRAY['string', 'text', 'integer', 'checkbox', 'select', 'multiple_choice', 'dropdown', 'linear_scale', 'date', 'time']::varchar[]
+            FROM pg_type t
+            JOIN pg_enum e ON t.oid = e.enumtypid
+            WHERE t.typname = 'enum_template_questions_type'
+            GROUP BY t.oid
+            HAVING ARRAY_AGG(e.enumlabel ORDER BY e.enumsortorder) @> ARRAY['string', 'text', 'integer', 'checkbox', 'select', 'multiple_choice', 'dropdown', 'linear_scale', 'date', 'time']::varchar[]
           ) THEN
-            ALTER TABLE template_questions DROP COLUMN type;
+            ALTER TABLE template_questions DROP COLUMN IF EXISTS type;
+            CREATE TYPE enum_template_questions_type AS ENUM ('string', 'text', 'integer', 'checkbox', 'select', 'multiple_choice', 'dropdown', 'linear_scale', 'date', 'time');
             ALTER TABLE template_questions
-            ADD COLUMN type ENUM('string', 'text', 'integer', 'checkbox', 'select', 'multiple_choice', 'dropdown', 'linear_scale', 'date', 'time') NOT NULL;
+            ADD COLUMN type enum_template_questions_type NOT NULL;
           END IF;
         END $$;
       `);
@@ -90,19 +93,22 @@ module.exports = {
         timestamp: new Date().toISOString(),
       });
 
-      // Verify state ENUM (optional, as is_required is used, but kept for compatibility)
+      // Verify state ENUM
       await queryInterface.sequelize.query(`
         DO $$
         BEGIN
           IF NOT EXISTS (
             SELECT 1
-            FROM pg_type
-            WHERE typname = 'enum_template_questions_state'
-            AND enumlabels @> ARRAY['not_present', 'optional', 'required']::varchar[]
+            FROM pg_type t
+            JOIN pg_enum e ON t.oid = e.enumtypid
+            WHERE t.typname = 'enum_template_questions_state'
+            GROUP BY t.oid
+            HAVING ARRAY_AGG(e.enumlabel ORDER BY e.enumsortorder) @> ARRAY['not_present', 'optional', 'required']::varchar[]
           ) THEN
-            ALTER TABLE template_questions DROP COLUMN state;
+            ALTER TABLE template_questions DROP COLUMN IF EXISTS state;
+            CREATE TYPE enum_template_questions_state AS ENUM ('not_present', 'optional', 'required');
             ALTER TABLE template_questions
-            ADD COLUMN state ENUM('not_present', 'optional', 'required') NOT NULL DEFAULT 'optional';
+            ADD COLUMN state enum_template_questions_state NOT NULL DEFAULT 'optional';
           END IF;
         END $$;
       `);
