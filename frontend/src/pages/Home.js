@@ -56,6 +56,7 @@ function Home() {
           });
           setError(
             err.response?.status === 429 ? t('home.rateLimit') :
+            err.response?.status === 500 ? t('home.serverError') :
             t('home.loadError')
           );
         }
@@ -151,6 +152,11 @@ function Home() {
     }
   };
 
+  const handleViewClick = (templateId, title) => {
+    console.log(`✅ Navigating to template: ${templateId} (${title})`, { timestamp: new Date().toISOString() });
+    navigate(`/templates/${templateId}`);
+  };
+
   const handleRetry = async () => {
     console.log('✅ Retrying fetch templates', { timestamp: new Date().toISOString() });
     setError(null);
@@ -179,6 +185,7 @@ function Home() {
         });
         setError(
           err.response?.status === 429 ? t('home.rateLimit') :
+          err.response?.status === 500 ? t('home.serverError') :
           t('home.loadError')
         );
       } finally {
@@ -297,14 +304,23 @@ function Home() {
                       {t('home.by')} {template.User?.name || t('home.unknown')}
                     </small>
                   </Card.Text>
-                  <Button
-                    as={Link}
-                    to={`/templates/${template.id}`}
-                    variant={theme === 'dark' ? 'outline-light' : 'primary'}
-                    aria-label={t('home.viewTemplate', { title: template.title })}
-                  >
-                    {t('home.view')}
-                  </Button>
+                  {template.id ? (
+                    <Button
+                      variant={theme === 'dark' ? 'outline-light' : 'primary'}
+                      onClick={() => handleViewClick(template.id, template.title)}
+                      aria-label={t('home.viewTemplate', { title: template.title })}
+                    >
+                      {t('home.view')}
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="secondary"
+                      disabled
+                      aria-label={t('home.viewDisabled')}
+                    >
+                      {t('home.view')}
+                    </Button>
+                  )}
                 </Card.Body>
               </Card>
             </div>
