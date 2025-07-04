@@ -43,8 +43,13 @@ function TemplatePage() {
         const headers = getAuthHeaders();
         const res = await axios.get(`${API_BASE}/api/templates/${id}`, { headers });
         const data = res.data.template || res.data;
-        if (!data.id) throw new Error('Invalid template data');
-        console.log('✅ Template fetched:', { title: data.title, questions: data.TemplateQuestions?.length || 0, timestamp: new Date().toISOString() });
+        if (!data.id || !data.title) throw new Error('Invalid template data');
+        console.log('✅ Template fetched:', {
+          title: data.title,
+          questions: data.TemplateQuestions?.length || 0,
+          hasAttachments: data.TemplateQuestions?.some(q => q.attachment_url) || false,
+          timestamp: new Date().toISOString(),
+        });
         setTemplate(data);
         setLikeCount(data.like_count || 0);
         setIsLiked(data.user_liked || false);
@@ -71,6 +76,7 @@ function TemplatePage() {
           }
         } else {
           setErrorTemplate(
+            err.response?.status === 403 ? t('templatePage.forbidden') :
             err.response?.status === 404 ? t('templatePage.notFound') :
             err.response?.status === 429 ? t('templatePage.rateLimit') :
             err.response?.status === 500 ? t('templatePage.serverError') :
@@ -117,8 +123,8 @@ function TemplatePage() {
           }
         } else {
           setErrorResults(
-            err.response?.status === 404 ? t('templatePage.noResults') :
             err.response?.status === 403 ? t('templatePage.forbidden') :
+            err.response?.status === 404 ? t('templatePage.noResults') :
             err.response?.status === 429 ? t('templatePage.rateLimit') :
             t('templatePage.loadResultsError')
           );
@@ -174,6 +180,7 @@ function TemplatePage() {
         }
       } else {
         setErrorLike(
+          err.response?.status === 403 ? t('templatePage.forbidden') :
           err.response?.status === 404 ? t('templatePage.notFound') :
           err.response?.status === 429 ? t('templatePage.rateLimit') :
           t('templatePage.likeError')
@@ -214,6 +221,7 @@ function TemplatePage() {
         }
       } else {
         setErrorTemplate(
+          err.response?.status === 403 ? t('templatePage.forbidden') :
           err.response?.status === 404 ? t('templatePage.notFound') :
           err.response?.status === 429 ? t('templatePage.rateLimit') :
           t('templatePage.deleteError')
@@ -233,8 +241,13 @@ function TemplatePage() {
         const headers = getAuthHeaders();
         const res = await axios.get(`${API_BASE}/api/templates/${id}`, { headers });
         const data = res.data.template || res.data;
-        if (!data.id) throw new Error('Invalid template data');
-        console.log('✅ Retry template fetched:', { title: data.title, questions: data.TemplateQuestions?.length || 0, timestamp: new Date().toISOString() });
+        if (!data.id || !data.title) throw new Error('Invalid template data');
+        console.log('✅ Retry template fetched:', {
+          title: data.title,
+          questions: data.TemplateQuestions?.length || 0,
+          hasAttachments: data.TemplateQuestions?.some(q => q.attachment_url) || false,
+          timestamp: new Date().toISOString(),
+        });
         setTemplate(data);
         setLikeCount(data.like_count || 0);
         setIsLiked(data.user_liked || false);
@@ -261,6 +274,7 @@ function TemplatePage() {
           }
         } else {
           setErrorTemplate(
+            err.response?.status === 403 ? t('templatePage.forbidden') :
             err.response?.status === 404 ? t('templatePage.notFound') :
             err.response?.status === 429 ? t('templatePage.rateLimit') :
             err.response?.status === 500 ? t('templatePage.serverError') :
@@ -301,8 +315,8 @@ function TemplatePage() {
           }
         } else {
           setErrorResults(
-            err.response?.status === 404 ? t('templatePage.noResults') :
             err.response?.status === 403 ? t('templatePage.forbidden') :
+            err.response?.status === 404 ? t('templatePage.noResults') :
             err.response?.status === 429 ? t('templatePage.rateLimit') :
             t('templatePage.loadResultsError')
           );
@@ -544,7 +558,7 @@ function TemplatePage() {
 
         {activeTab === 'questions' && (
           <div id="questions-tab" role="tabpanel" aria-labelledby="questions-tab">
-            {template.TemplateQuestions && template.TemplateQuestions.length > 0 && (
+            {template.TemplateQuestions && template.TemplateQuestions.length > 0 ? (
               <ListGroup className="mb-3">
                 {template.TemplateQuestions.map((question, idx) => (
                   <ListGroup.Item
@@ -553,7 +567,7 @@ function TemplatePage() {
                   >
                     <p>
                       <strong>{question.title || t('templatePage.unknownQuestion')}:</strong>{' '}
-                      {t(`templatePage.${question.type}`)} {question.state === 'required' ? t('templatePage.required') : t('templatePage.optional')}
+                      {t(`templatePage.${question.type}`, { defaultValue: question.type })} {question.state === 'required' ? t('templatePage.required') : t('templatePage.optional')}
                     </p>
                     {question.options && question.options.length > 0 && (
                       <p>
@@ -563,14 +577,25 @@ function TemplatePage() {
                     {question.attachment_url && (
                       <p>
                         <strong>{t('templatePage.attachment')}:</strong>{' '}
-                        <a href={question.attachment_url} target="_blank" rel="noopener noreferrer">
-                          {t('templatePage.viewAttachment')}
+                        <a
+                          href={question.attachment_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => console.log('✅ Viewing attachment:', {
+                            url: question.attachment_url,
+                            questionId: question.id,
+                            timestamp: new Date().toISOString(),
+                          })}
+                        >
+                          {t('templatePage.viewAttachment')} ({getFileType(question.attachment_url)})
                         </a>
                       </p>
                     )}
                   </ListGroup.Item>
                 ))}
               </ListGroup>
+            ) : (
+              <p aria-live="polite">{t('templatePage.noQuestions')}</p>
             )}
             {canFillForm ? (
               <FormFill
@@ -659,5 +684,19 @@ function TemplatePage() {
     </Container>
   );
 }
+
+// Helper function to extract file type from URL
+const getFileType = (url) => {
+  try {
+    const extension = url.split('.').pop().toLowerCase();
+    return extension === 'jpg' || extension === 'jpeg' ? 'Image' :
+           extension === 'png' ? 'Image' :
+           extension === 'pdf' ? 'PDF' :
+           extension === 'mp4' ? 'Video' :
+           extension === 'doc' || extension === 'docx' ? 'Document' : 'File';
+  } catch {
+    return 'File';
+  }
+};
 
 export default TemplatePage;
