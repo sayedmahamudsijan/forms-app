@@ -80,7 +80,7 @@ module.exports = {
             JOIN pg_enum e ON t.oid = e.enumtypid
             WHERE t.typname = 'enum_template_questions_type'
             GROUP BY t.oid
-            HAVING ARRAY_AGG(e.enumlabel ORDER BY e.enumsortorder) @> ARRAY['string', 'text', 'integer', 'checkbox', 'select', 'multiple_choice', 'dropdown', 'linear_scale', 'date', 'time']::varchar[]
+            HAVING ARRAY_AGG(e.enumlabel ORDER BY e.enumsortorder)::text[] @> ARRAY['string', 'text', 'integer', 'checkbox', 'select', 'multiple_choice', 'dropdown', 'linear_scale', 'date', 'time']::text[]
           ) THEN
             ALTER TABLE template_questions DROP COLUMN IF EXISTS type;
             CREATE TYPE enum_template_questions_type AS ENUM ('string', 'text', 'integer', 'checkbox', 'select', 'multiple_choice', 'dropdown', 'linear_scale', 'date', 'time');
@@ -103,7 +103,7 @@ module.exports = {
             JOIN pg_enum e ON t.oid = e.enumtypid
             WHERE t.typname = 'enum_template_questions_state'
             GROUP BY t.oid
-            HAVING ARRAY_AGG(e.enumlabel ORDER BY e.enumsortorder) @> ARRAY['not_present', 'optional', 'required']::varchar[]
+            HAVING ARRAY_AGG(e.enumlabel ORDER BY e.enumsortorder)::text[] @> ARRAY['not_present', 'optional', 'required']::text[]
           ) THEN
             ALTER TABLE template_questions DROP COLUMN IF EXISTS state;
             CREATE TYPE enum_template_questions_state AS ENUM ('not_present', 'optional', 'required');
