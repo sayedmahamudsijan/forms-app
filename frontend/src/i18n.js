@@ -11,7 +11,8 @@ const resources = {
         searchLabel: 'Search Templates',
         searchPlaceholder: 'Search templates by keyword or tag',
         searchButton: 'Search',
-        search: 'Search', // Added for Home.js search button
+        search: 'Search', // For search button in Home.js
+        view: 'View', // For view button in Home.js
         latestTemplates: 'Latest Templates',
         topTemplates: 'Top Templates',
         myTemplates: 'My Templates',
@@ -22,14 +23,15 @@ const resources = {
         by: 'By',
         unknown: 'Unknown',
         viewTemplate: 'View template {title}',
-        viewDisabled: 'View (Disabled)', // Added for Home.js disabled view button
+        viewDisabled: 'View (Disabled)',
         templateImage: 'Image for template {title}',
         loadError: 'Failed to load templates',
         unauthorized: 'Please log in to access your templates',
-        forbidden: 'You do not have permission to view these templates', // Added for Home.js
-        serverError: 'Server error occurred. Please try again later', // Added for Home.js
-        deleteError: 'Failed to delete template. Please try again', // Added for Home.js
-        invalidTemplateId: 'Invalid template ID', // Added for Home.js
+        forbidden: 'You do not have permission to view these templates',
+        serverError: 'Server error occurred. Please try again later',
+        serverDown: 'The server is temporarily unavailable. Please try again later.',
+        deleteError: 'Failed to delete template. Please try again',
+        invalidTemplateId: 'Invalid template ID',
         retry: 'Retry',
       },
       login: {
@@ -144,7 +146,7 @@ const resources = {
         edit: 'Edit',
         delete: 'Delete',
         noResults: 'No form submissions yet',
-        noQuestions: 'No questions available for this template', // Added for TemplatePage.js
+        noQuestions: 'No questions available for this template',
         resultsList: 'List of form submissions',
         submittedOn: 'Submitted on {date}',
         unknownQuestion: 'Unknown Question',
@@ -153,7 +155,7 @@ const resources = {
         formSubmitSuccess: 'Form submitted successfully!',
         formSubmitError: 'Failed to submit form. Please try again.',
         rateLimit: 'Too many requests. Please try again later.',
-        forbidden: 'You do not have permission to view this template or its results', // Updated for TemplatePage.js
+        forbidden: 'You do not have permission to view this template or its results',
         serverError: 'Server error. Please try again later.',
         imageAlt: 'Image for template {title}',
         options: 'Options',
@@ -185,9 +187,9 @@ const resources = {
         noTopicsMessage: 'No topics available. Create one in the admin panel.',
         adminPanel: 'Admin Panel',
         tagsLabel: 'Tags',
+        tagsPlaceholder: 'Select tags', // Added for CreateTemplate.js
         permissionsLabel: 'Share with users',
-        tagLink: 'Select tag {name}',
-        shareWithUser: 'Share with user {name}',
+        permissionsPlaceholder: 'Select users to share with', // Added for CreateTemplate.js
         questionsLabel: 'Questions',
         string: 'Short Text',
         text: 'Long Text',
@@ -226,14 +228,16 @@ const resources = {
         invalidData: 'Invalid form data provided',
         submitError: 'Failed to create template. Please try again.',
         invalidTopicId: 'Invalid topic selected',
-        imageLabel: 'Image', // Added for CreateTemplate.js
-        imagePlaceholder: 'Upload template image', // Added for CreateTemplate.js
-        imageRequired: 'Image is required', // Added for CreateTemplate.js
-        attachment: 'Question Attachment', // Already present
-        attachmentSelected: 'Selected: {name}', // Added for CreateTemplate.js
-        invalidAttachment: 'Invalid attachment type. Use JPEG, PNG, PDF, MP4, DOC, or DOCX.', // Added for CreateTemplate.js
-        attachmentTooLarge: 'Attachment size must be less than 10MB.', // Added for CreateTemplate.js
-        viewAttachment: 'View Attachment', // Already present
+        imageLabel: 'Image',
+        imagePlaceholder: 'Upload template image',
+        imageRequired: 'Image is required',
+        attachment: 'Question Attachment',
+        attachmentLabel: 'Attachment', // Added for CreateTemplate.js
+        attachmentSelected: 'Selected: {name}',
+        invalidAttachment: 'Invalid attachment type. Use JPEG, PNG, PDF, MP4, DOC, or DOCX.',
+        attachmentTooLarge: 'Attachment size must be less than 10MB.',
+        viewAttachment: 'View Attachment',
+        visibleInResults: 'Visible in Results', // Added for CreateTemplate.js
       },
       templateList: {
         title: 'Title',
@@ -259,8 +263,8 @@ const resources = {
         tableLabel: 'Templates table',
         tableCaption: 'List of templates',
         noTopic: 'No topic assigned',
-        noAttachments: 'No attachments available', 
-        invalidTemplateId: 'Invalid template ID', 
+        noAttachments: 'No attachments available',
+        invalidTemplateId: 'Invalid template ID',
       },
       form: {
         title: 'Fill Form: {templateTitle}',
@@ -322,6 +326,7 @@ const resources = {
         retry: 'Retry',
         noTags: 'No tags available',
         tagLink: 'Search for tag {name}',
+        serverDown: 'The server is temporarily unavailable. Please try again later.',
       },
       adminPanel: {
         title: 'Admin Panel',
@@ -438,7 +443,8 @@ const resources = {
         searchLabel: 'Buscar Plantillas',
         searchPlaceholder: 'Buscar plantillas por palabra clave o etiqueta',
         searchButton: 'Buscar',
-        search: 'Buscar', // Added for Home.js
+        search: 'Buscar', // For search button in Home.js
+        view: 'Ver', // For view button in Home.js
         latestTemplates: 'Últimas Plantillas',
         topTemplates: 'Plantillas Populares',
         myTemplates: 'Mis Plantillas',
@@ -449,14 +455,15 @@ const resources = {
         by: 'Por',
         unknown: 'Desconocido',
         viewTemplate: 'Ver plantilla {title}',
-        viewDisabled: 'Ver (Desactivado)', // Added for Home.js
+        viewDisabled: 'Ver (Desactivado)',
         templateImage: 'Imagen para la plantilla {title}',
         loadError: 'Error al cargar plantillas',
         unauthorized: 'Por favor inicia sesión para acceder a tus plantillas',
-        forbidden: 'No tienes permiso para ver estas plantillas', // Added for Home.js
-        serverError: 'Error del servidor. Por favor intenta de nuevo más tarde', // Added for Home.js
-        deleteError: 'Error al eliminar la plantilla. Por favor intenta de nuevo', // Added for Home.js
-        invalidTemplateId: 'ID de plantilla inválido', // Added for Home.js
+        forbidden: 'No tienes permiso para ver estas plantillas',
+        serverError: 'Error del servidor. Por favor intenta de nuevo más tarde',
+        serverDown: 'El servidor no está disponible temporalmente. Por favor intenta de nuevo más tarde.',
+        deleteError: 'Error al eliminar la plantilla. Por favor intenta de nuevo',
+        invalidTemplateId: 'ID de plantilla inválido',
         retry: 'Reintentar',
       },
       login: {
@@ -571,7 +578,7 @@ const resources = {
         edit: 'Editar',
         delete: 'Eliminar',
         noResults: 'Aún no hay envíos de formularios',
-        noQuestions: 'No hay preguntas disponibles para esta plantilla', // Added for TemplatePage.js
+        noQuestions: 'No hay preguntas disponibles para esta plantilla',
         resultsList: 'Lista de envíos de formularios',
         submittedOn: 'Enviado el {date}',
         unknownQuestion: 'Pregunta Desconocida',
@@ -580,7 +587,7 @@ const resources = {
         formSubmitSuccess: '¡Formulario enviado exitosamente!',
         formSubmitError: 'Error al enviar el formulario. Por favor intenta de nuevo.',
         rateLimit: 'Demasiadas solicitudes. Por favor intenta de nuevo más tarde.',
-        forbidden: 'No tienes permiso para ver esta plantilla o sus resultados', // Updated for TemplatePage.js
+        forbidden: 'No tienes permiso para ver esta plantilla o sus resultados',
         serverError: 'Error del servidor. Por favor intenta de nuevo más tarde.',
         imageAlt: 'Imagen para la plantilla {title}',
         options: 'Opciones',
@@ -612,9 +619,9 @@ const resources = {
         noTopicsMessage: 'No hay temas disponibles. Crea uno en el panel de administración.',
         adminPanel: 'Panel de Administración',
         tagsLabel: 'Etiquetas',
+        tagsPlaceholder: 'Seleccionar etiquetas',
         permissionsLabel: 'Compartir con usuarios',
-        tagLink: 'Seleccionar etiqueta {name}',
-        shareWithUser: 'Compartir con usuario {name}',
+        permissionsPlaceholder: 'Seleccionar usuarios para compartir',
         questionsLabel: 'Preguntas',
         string: 'Texto Corto',
         text: 'Texto Largo',
@@ -653,14 +660,16 @@ const resources = {
         invalidData: 'Datos de formulario inválidos proporcionados',
         submitError: 'Error al crear la plantilla. Por favor intenta de nuevo.',
         invalidTopicId: 'Tema seleccionado inválido',
-        imageLabel: 'Imagen', // Added for CreateTemplate.js
-        imagePlaceholder: 'Subir imagen de la plantilla', // Added for CreateTemplate.js
-        imageRequired: 'La imagen es obligatoria', // Added for CreateTemplate.js
-        attachment: 'Adjunto de Pregunta', // Already present
-        attachmentSelected: 'Seleccionado: {name}', // Added for CreateTemplate.js
-        invalidAttachment: 'Tipo de adjunto no válido. Usa JPEG, PNG, PDF, MP4, DOC o DOCX.', // Added for CreateTemplate.js
-        attachmentTooLarge: 'El tamaño del adjunto debe ser menor a 10MB.', // Added for CreateTemplate.js
-        viewAttachment: 'Ver Adjunto', // Already present
+        imageLabel: 'Imagen',
+        imagePlaceholder: 'Subir imagen de la plantilla',
+        imageRequired: 'La imagen es obligatoria',
+        attachment: 'Adjunto de Pregunta',
+        attachmentLabel: 'Adjunto',
+        attachmentSelected: 'Seleccionado: {name}',
+        invalidAttachment: 'Tipo de adjunto no válido. Usa JPEG, PNG, PDF, MP4, DOC o DOCX.',
+        attachmentTooLarge: 'El tamaño del adjunto debe ser menor a 10MB.',
+        viewAttachment: 'Ver Adjunto',
+        visibleInResults: 'Visible en Resultados',
       },
       templateList: {
         title: 'Título',
@@ -749,6 +758,7 @@ const resources = {
         retry: 'Reintentar',
         noTags: 'No hay etiquetas disponibles',
         tagLink: 'Buscar etiqueta {name}',
+        serverDown: 'El servidor no está disponible temporalmente. Por favor intenta de nuevo más tarde.',
       },
       adminPanel: {
         title: 'Panel de Administración',
@@ -872,6 +882,7 @@ function initializeI18n() {
         react: {
           useSuspense: false,
         },
+        debug: true, // Enable debug for logging
       })
       .then(() => {
         console.log('✅ i18next initialized successfully', { timestamp: new Date().toISOString() });
@@ -897,11 +908,15 @@ async function initWithRetry() {
   } catch (error) {
     if (retryCount < maxRetries) {
       retryCount++;
-      console.log(`✅ Retrying i18n initialization (attempt ${retryCount}/${maxRetries})`);
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log(`✅ Retrying i18n initialization (attempt ${retryCount}/${maxRetries})`, {
+        timestamp: new Date().toISOString(),
+      });
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       return initWithRetry();
     } else {
-      console.error('❌ Max retries reached for i18n initialization');
+      console.error('❌ Max retries reached for i18n initialization', {
+        timestamp: new Date().toISOString(),
+      });
       const root = document.getElementById('root');
       if (root) {
         root.innerHTML = `
