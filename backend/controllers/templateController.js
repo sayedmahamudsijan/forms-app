@@ -13,6 +13,28 @@ const {
 } = require('../models');
 const { uploadFile } = require('../services/cloudinaryService');
 
+// Middleware to parse JSON strings in specific fields
+const parseJsonFields = (req, res, next) => {
+  const fields = ['questions', 'tags', 'permissions'];
+  fields.forEach(field => {
+    if (typeof req.body[field] === 'string') {
+      try {
+        req.body[field] = JSON.parse(req.body[field]);
+      } catch (error) {
+        console.log(`❌ ParseJsonFields failed for ${field}: ${error.message}`, {
+          timestamp: new Date().toISOString(),
+          body: req.body,
+        });
+        return res.status(400).json({
+          success: false,
+          errors: [{ msg: `Invalid JSON format for ${field}`, path: field }],
+        });
+      }
+    }
+  });
+  next();
+};
+
 const validateCreateTemplate = [
   body('title').trim().notEmpty().withMessage('Title is required'),
   body('description').trim().optional(),
@@ -25,9 +47,21 @@ const validateCreateTemplate = [
       questions.every(q => q.type && q.title && ['string', 'text', 'integer', 'checkbox', 'select', 'multiple_choice', 'dropdown', 'linear_scale', 'date', 'time'].includes(q.type))
     )
     .withMessage('Each question must have a valid type (string, text, integer, checkbox, select, multiple_choice, dropdown, linear_scale, date, time) and title')
-    .custom(questions => questions.every(q => ['select', 'multiple_choice', 'dropdown'].includes(q.type) ? (Array.isArray(q.options) && q.options.length >= 2) : true))
+    .custom(questions =>
+      questions.every(q =>
+        ['select', 'multiple_choice', 'dropdown'].includes(q.type)
+          ? Array.isArray(q.options) && q.options.length >= 2
+          : true
+      )
+    )
     .withMessage('Select, multiple_choice, or dropdown questions must have at least two options')
-    .custom(questions => questions.every(q => q.type !== 'linear_scale' || (q.min != null && q.max != null && Number.isInteger(q.min) && Number.isInteger(q.max) && q.min < q.max)))
+    .custom(questions =>
+      questions.every(q =>
+        q.type === 'linear_scale'
+          ? q.min != null && q.max != null && Number.isInteger(q.min) && Number.isInteger(q.max) && q.min < q.max
+          : true
+      )
+    )
     .withMessage('Linear scale questions must have valid integer min and max values, with min less than max'),
   body('tags').isArray().withMessage('Tags must be an array'),
   body('permissions').isArray().withMessage('Permissions must be an array'),
@@ -46,9 +80,21 @@ const validateUpdateTemplate = [
       questions.every(q => q.type && q.title && ['string', 'text', 'integer', 'checkbox', 'select', 'multiple_choice', 'dropdown', 'linear_scale', 'date', 'time'].includes(q.type))
     )
     .withMessage('Each question must have a valid type (string, text, integer, checkbox, select, multiple_choice, dropdown, linear_scale, date, time) and title')
-    .custom(questions => questions.every(q => ['select', 'multiple_choice', 'dropdown'].includes(q.type) ? (Array.isArray(q.options) && q.options.length >= 2) : true))
+    .custom(questions =>
+      questions.every(q =>
+        ['select', 'multiple_choice', 'dropdown'].includes(q.type)
+          ? Array.isArray(q.options) && q.options.length >= 2
+          : true
+      )
+    )
     .withMessage('Select, multiple_choice, or dropdown questions must have at least two options')
-    .custom(questions => questions.every(q => q.type !== 'linear_scale' || (q.min != null && q.max != null && Number.isInteger(q.min) && Number.isInteger(q.max) && q.min < q.max)))
+    .custom(questions =>
+      questions.every(q =>
+        q.type === 'linear_scale'
+          ? q.min != null && q.max != null && Number.isInteger(q.min) && Number.isInteger(q.max) && q.min < q.max
+          : true
+      )
+    )
     .withMessage('Linear scale questions must have valid integer min and max values, with min less than max'),
   body('tags').isArray().withMessage('Tags must be an array'),
   body('permissions').isArray().withMessage('Permissions must be an array'),
@@ -59,6 +105,7 @@ const validateGetTemplate = [
 ];
 
 const createTemplate = [
+  parseJsonFields,
   ...validateCreateTemplate,
   async (req, res) => {
     const errors = validationResult(req);
@@ -231,6 +278,7 @@ const createTemplate = [
 ];
 
 const updateTemplate = [
+  parseJsonFields,
   ...validateUpdateTemplate,
   async (req, res) => {
     const errors = validationResult(req);
