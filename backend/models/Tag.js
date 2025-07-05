@@ -11,7 +11,13 @@ module.exports = (sequelize, DataTypes) => {
   });
 
   Tag.associate = (models) => {
-    Tag.hasMany(models.TemplateTag, { foreignKey: 'tag_id', as: 'TemplateTags', onDelete: 'CASCADE' });
+    Tag.belongsToMany(models.Template, { 
+      through: 'template_tags', 
+      foreignKey: 'tag_id', 
+      otherKey: 'template_id', 
+      as: 'Templates',
+      onDelete: 'CASCADE' 
+    });
   };
 
   return Tag;
