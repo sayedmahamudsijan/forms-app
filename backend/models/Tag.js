@@ -1,49 +1,24 @@
-'use strict';
-
-const { Model } = require('sequelize');
-
 module.exports = (sequelize, DataTypes) => {
-  class Tag extends Model {
-    static associate(models) {
-      Tag.belongsToMany(models.Template, { 
-        through: models.TemplateTag, // Changed from 'template_tags' to models.TemplateTag
-        foreignKey: 'tag_id', 
-        otherKey: 'template_id', 
-        as: 'Templates',
-        onDelete: 'CASCADE' 
-      });
-    }
-  }
-
-  Tag.init({
-    id: { 
-      type: DataTypes.INTEGER, 
-      autoIncrement: true, 
-      primaryKey: true 
-    },
-    name: { 
-      type: DataTypes.STRING, 
-      unique: true, 
-      allowNull: false 
-    },
-    created_at: { 
-      type: DataTypes.DATE, 
-      allowNull: false 
-    },
-    updated_at: { 
-      type: DataTypes.DATE, 
-      allowNull: false 
-    },
+  const Tag = sequelize.define('Tag', {
+    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+    name: { type: DataTypes.STRING, unique: true, allowNull: false },
   }, {
-    sequelize,
-    modelName: 'Tag',
-    tableName: 'Tags',
     timestamps: true,
     underscored: true,
     indexes: [
       { fields: ['name'], unique: true },
     ],
   });
+
+  Tag.associate = (models) => {
+    Tag.belongsToMany(models.Template, { 
+      through: 'template_tags', 
+      foreignKey: 'tag_id', 
+      otherKey: 'template_id', 
+      as: 'Templates',
+      onDelete: 'CASCADE' 
+    });
+  };
 
   return Tag;
 };
