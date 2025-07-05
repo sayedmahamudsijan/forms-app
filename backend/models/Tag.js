@@ -12,7 +12,7 @@ module.exports = (sequelize, DataTypes) => {
 
   Tag.associate = (models) => {
     Tag.belongsToMany(models.Template, { 
-      through: 'template_tags', 
+      through: { model: 'template_tags', timestamps: false }, 
       foreignKey: 'tag_id', 
       otherKey: 'template_id', 
       as: 'Templates',
