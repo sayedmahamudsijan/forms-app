@@ -184,57 +184,7 @@ module.exports = {
         references: { model: 'tags', key: 'id' },
         onDelete: 'CASCADE',
       },
-      created_at: {
-        type: Sequelize.DATE,
-        allowNull: false,
-        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
-      },
-      updated_at: {
-        type: Sequelize.DATE,
-        allowNull: false,
-        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
-      },
     });
-
-    // Check and add created_at and updated_at to existing template_tags table
-    try {
-      const table = await queryInterface.describeTable('template_tags');
-      
-      if (!table.created_at) {
-        await queryInterface.addColumn('template_tags', 'created_at', {
-          type: Sequelize.DATE,
-          allowNull: false,
-          defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
-        });
-        console.log('✅ Added created_at column to existing template_tags table', {
-          timestamp: new Date().toISOString(),
-        });
-      } else {
-        console.log('✅ created_at column already exists in template_tags, skipping addition', {
-          timestamp: new Date().toISOString(),
-        });
-      }
-
-      if (!table.updated_at) {
-        await queryInterface.addColumn('template_tags', 'updated_at', {
-          type: Sequelize.DATE,
-          allowNull: false,
-          defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
-        });
-        console.log('✅ Added updated_at column to existing template_tags table', {
-          timestamp: new Date().toISOString(),
-        });
-      } else {
-        console.log('✅ updated_at column already exists in template_tags, skipping addition', {
-          timestamp: new Date().toISOString(),
-        });
-      }
-    } catch (error) {
-      console.warn(`⚠️ Failed to update existing template_tags table: ${error.message}`, {
-        timestamp: new Date().toISOString(),
-      });
-      // Continue with migration even if column addition fails, as table creation is complete
-    }
 
     // Create TemplatePermissions table
     await queryInterface.createTable('template_permissions', {
