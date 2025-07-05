@@ -1,57 +1,20 @@
-'use strict';
-
-const { Model } = require('sequelize');
-
 module.exports = (sequelize, DataTypes) => {
-  class TemplateTag extends Model {
-    static associate(models) {
-      TemplateTag.belongsTo(models.Template, { 
-        foreignKey: 'template_id', 
-        as: 'Template', 
-        onDelete: 'CASCADE' 
-      });
-      TemplateTag.belongsTo(models.Tag, { 
-        foreignKey: 'tag_id', 
-        as: 'Tag', 
-        onDelete: 'CASCADE' 
-      });
-    }
-  }
-
-  TemplateTag.init({
-    template_id: { 
-      type: DataTypes.INTEGER, 
-      primaryKey: true, 
-      allowNull: false,
-      references: { model: 'Templates', key: 'id' }
-    },
-    tag_id: { 
-      type: DataTypes.INTEGER, 
-      primaryKey: true, 
-      allowNull: false,
-      references: { model: 'Tags', key: 'id' }
-    },
-    created_at: { 
-      type: DataTypes.DATE, 
-      allowNull: false,
-      defaultValue: sequelize.literal('CURRENT_TIMESTAMP')
-    },
-    updated_at: { 
-      type: DataTypes.DATE, 
-      allowNull: false,
-      defaultValue: sequelize.literal('CURRENT_TIMESTAMP')
-    },
+  const TemplateTag = sequelize.define('TemplateTag', {
+    template_id: { type: DataTypes.INTEGER, primaryKey: true, allowNull: false },
+    tag_id: { type: DataTypes.INTEGER, primaryKey: true, allowNull: false },
   }, {
-    sequelize,
-    modelName: 'TemplateTag',
-    tableName: 'template_tags',
-    timestamps: true, // Changed from false to true
+    timestamps: false,
     underscored: true,
     indexes: [
       { fields: ['template_id'] },
       { fields: ['tag_id'] },
     ],
   });
+
+  TemplateTag.associate = (models) => {
+    TemplateTag.belongsTo(models.Template, { foreignKey: 'template_id', as: 'Template', onDelete: 'CASCADE' });
+    TemplateTag.belongsTo(models.Tag, { foreignKey: 'tag_id', as: 'Tag', onDelete: 'CASCADE' });
+  };
 
   return TemplateTag;
 };
