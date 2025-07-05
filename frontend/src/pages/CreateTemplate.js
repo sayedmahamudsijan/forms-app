@@ -18,14 +18,14 @@ function CreateTemplate() {
   const navigate = useNavigate();
   const [topics, setTopics] = useState([]);
   const [tags, setTags] = useState([]);
+  const [selectedTags, setSelectedTags] = useState([]);
   const [users, setUsers] = useState([]);
+  const [selectedUsers, setSelectedUsers] = useState([]);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     topic_id: '',
     is_public: false,
-    tags: [],
-    permissions: [],
     questions: [{
       type: 'string',
       title: '',
@@ -62,7 +62,7 @@ function CreateTemplate() {
         ]);
         if (isMounted) {
           setTopics(topicsRes.data.topics || []);
-          setTags(tagsRes.data.tags.map(t => ({ value: String(t.id), label: t.name })) || []);
+          setTags(tagsRes.data.tags.map(t => ({ value: t.name, label: t.name })) || []);
           setUsers(usersRes.data.users.filter(u => u.id !== user?.id).map(u => ({ value: String(u.id), label: `${u.name} (${u.email})` })) || []);
           console.log('✅ Fetched data:', {
             topics: topicsRes.data.topics,
@@ -155,16 +155,14 @@ function CreateTemplate() {
   };
 
   const handleTagChange = (selectedOptions) => {
-    const newTags = selectedOptions ? selectedOptions.map(opt => opt.label) : [];
-    setFormData((prev) => ({ ...prev, tags: newTags }));
-    console.log('✅ Updated tags:', newTags, { timestamp: new Date().toISOString() });
+    setSelectedTags(selectedOptions || []);
+    console.log('✅ Updated tags:', selectedOptions?.map(opt => opt.value) || [], { timestamp: new Date().toISOString() });
     setServerErrors([]);
   };
 
   const handlePermissionChange = (selectedOptions) => {
-    const newPermissions = selectedOptions ? selectedOptions.map(opt => Number(opt.value)) : [];
-    setFormData((prev) => ({ ...prev, permissions: newPermissions }));
-    console.log('✅ Updated permissions:', newPermissions, { timestamp: new Date().toISOString() });
+    setSelectedUsers(selectedOptions || []);
+    console.log('✅ Updated permissions:', selectedOptions?.map(opt => Number(opt.value)) || [], { timestamp: new Date().toISOString() });
     setServerErrors([]);
   };
 
@@ -278,8 +276,8 @@ function CreateTemplate() {
       formDataToSend.append('description', formData.description || '');
       formDataToSend.append('topic_id', Number(formData.topic_id));
       formDataToSend.append('is_public', formData.is_public.toString());
-      formDataToSend.append('tags', JSON.stringify(formData.tags || []));
-      formDataToSend.append('permissions', JSON.stringify(formData.permissions || []));
+      formDataToSend.append('tags', JSON.stringify(selectedTags.map(t => t.value) || []));
+      formDataToSend.append('permissions', JSON.stringify(selectedUsers.map(u => Number(u.value)) || []));
       const questionsToSend = formData.questions.map(q => ({
         title: q.title,
         type: q.type,
@@ -383,7 +381,7 @@ function CreateTemplate() {
           <title>{t('appName')} - {t('createTemplate.title')}</title>
         </Helmet>
         <Spinner animation="border" aria-label={t('app.loading')} />
-      </div>
+        </div>
     );
   }
 
@@ -515,7 +513,7 @@ function CreateTemplate() {
           <Select
             isMulti
             options={tags}
-            value={tags.filter(t => formData.tags.includes(t.label))}
+            value={selectedTags}
             onChange={handleTagChange}
             placeholder={t('createTemplate.tagsPlaceholder')}
             aria-label={t('createTemplate.tagsLabel')}
@@ -540,7 +538,7 @@ function CreateTemplate() {
           <Select
             isMulti
             options={users}
-            value={users.filter(u => formData.permissions.includes(Number(u.value)))}
+            value={selectedUsers}
             onChange={handlePermissionChange}
             placeholder={t('createTemplate.permissionsPlaceholder')}
             aria-label={t('createTemplate.permissionsLabel')}
