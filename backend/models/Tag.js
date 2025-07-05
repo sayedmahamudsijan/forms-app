@@ -6,7 +6,7 @@ module.exports = (sequelize, DataTypes) => {
   class Tag extends Model {
     static associate(models) {
       Tag.belongsToMany(models.Template, { 
-        through: models.TemplateTag, // Use TemplateTag model instead of table name
+        through: models.TemplateTag, // Changed from 'template_tags' to models.TemplateTag
         foreignKey: 'tag_id', 
         otherKey: 'template_id', 
         as: 'Templates',
