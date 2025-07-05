@@ -4,7 +4,6 @@ const {
   Template,
   TemplateQuestion,
   TemplatePermission,
-  TemplateTag,
   Tag,
   User,
   Topic,
@@ -339,7 +338,6 @@ const createTemplate = [
         const missingTagNames = tagNames.filter(n => !existingTagNames.includes(n));
         const tagRecords = [...tagsFromDb];
 
-        // Create missing tags
         for (const name of missingTagNames) {
           const newTag = await Tag.create({ name }, {
             transaction,
@@ -358,7 +356,6 @@ const createTemplate = [
           timestamp: new Date().toISOString(),
         });
 
-        // Associate tags using setTags
         await template.setTags(tagRecords, {
           transaction,
           logging: (sql) => {
@@ -395,7 +392,7 @@ const createTemplate = [
       const createdTemplate = await Template.findByPk(template.id, {
         include: [
           { model: User, as: 'User', attributes: ['id', 'name'], required: false },
-          { model: TemplateTag, as: 'Tags', include: [{ model: Tag, as: 'Tag', attributes: ['id', 'name'] }], required: false }, // Changed from TemplateTags to Tags
+          { model: Tag, as: 'Tags', attributes: ['id', 'name'], through: { attributes: [] }, required: false },
           { model: TemplatePermission, as: 'TemplatePermissions', required: false },
           { 
             model: TemplateQuestion, 
@@ -594,7 +591,6 @@ const updateTemplate = [
         timestamp: new Date().toISOString(),
       });
 
-      await TemplateTag.destroy({ where: { template_id: id }, transaction });
       const tagNames = tags || [];
       if (tagNames.length > 0) {
         const tagsFromDb = await Tag.findAll({
@@ -639,6 +635,9 @@ const updateTemplate = [
             });
           }
         });
+      } else {
+        // Clear existing tags if none provided
+        await template.setTags([], { transaction });
       }
 
       await TemplatePermission.destroy({ where: { template_id: id }, transaction });
@@ -667,7 +666,7 @@ const updateTemplate = [
       const updatedTemplate = await Template.findByPk(id, {
         include: [
           { model: User, as: 'User', attributes: ['id', 'name'], required: false },
-          { model: TemplateTag, as: 'Tags', include: [{ model: Tag, as: 'Tag', attributes: ['id', 'name'] }], required: false }, // Changed from TemplateTags to Tags
+          { model: Tag, as: 'Tags', attributes: ['id', 'name'], through: { attributes: [] }, required: false },
           { model: TemplatePermission, as: 'TemplatePermissions', required: false },
           { 
             model: TemplateQuestion, 
@@ -728,12 +727,7 @@ const getTemplates = async (req, res) => {
 
     const baseInclude = [
       { model: User, as: 'User', attributes: ['id', 'name', 'email'], required: false },
-      {
-        model: TemplateTag,
-        as: 'Tags', // Changed from TemplateTags to Tags
-        include: [{ model: Tag, as: 'Tag', attributes: ['id', 'name'] }],
-        required: false
-      },
+      { model: Tag, as: 'Tags', attributes: ['id', 'name'], through: { attributes: [] }, required: false },
       { model: Topic, as: 'Topic', attributes: ['id', 'name'], required: false }
     ];
 
@@ -892,7 +886,7 @@ const getTemplate = [
       const template = await Template.findByPk(id, {
         include: [
           { model: User, as: 'User', attributes: ['id', 'name'], required: false },
-          { model: TemplateTag, as: 'Tags', include: [{ model: Tag, as: 'Tag', attributes: ['id', 'name'] }], required: false }, // Changed from TemplateTags to Tags
+          { model: Tag, as: 'Tags', attributes: ['id', 'name'], through: { attributes: [] }, required: false },
           { model: TemplatePermission, as: 'TemplatePermissions', required: false },
           { 
             model: TemplateQuestion, 
