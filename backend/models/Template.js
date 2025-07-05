@@ -32,11 +32,17 @@ module.exports = (sequelize, DataTypes) => {
     Template.belongsTo(models.User, { foreignKey: 'user_id', as: 'User', onDelete: 'CASCADE' });
     Template.belongsTo(models.Topic, { foreignKey: 'topic_id', as: 'Topic', onDelete: 'RESTRICT' });
     Template.hasMany(models.TemplatePermission, { foreignKey: 'template_id', as: 'TemplatePermissions', onDelete: 'CASCADE' });
-    Template.hasMany(models.TemplateTag, { foreignKey: 'template_id', as: 'TemplateTags', onDelete: 'CASCADE' });
     Template.hasMany(models.TemplateQuestion, { foreignKey: 'template_id', as: 'TemplateQuestions', onDelete: 'CASCADE' });
     Template.hasMany(models.Form, { foreignKey: 'template_id', as: 'Forms', onDelete: 'CASCADE' });
     Template.hasMany(models.Comment, { foreignKey: 'template_id', as: 'Comments', onDelete: 'CASCADE' });
     Template.hasMany(models.Like, { foreignKey: 'template_id', as: 'Likes', onDelete: 'CASCADE' });
+    Template.belongsToMany(models.Tag, { 
+      through: 'template_tags', 
+      foreignKey: 'template_id', 
+      otherKey: 'tag_id', 
+      as: 'Tags',
+      onDelete: 'CASCADE' 
+    });
   };
 
   return Template;
