@@ -395,7 +395,7 @@ const createTemplate = [
       const createdTemplate = await Template.findByPk(template.id, {
         include: [
           { model: User, as: 'User', attributes: ['id', 'name'], required: false },
-          { model: TemplateTag, as: 'TemplateTags', include: [{ model: Tag, as: 'Tag', attributes: ['id', 'name'] }], required: false },
+          { model: TemplateTag, as: 'Tags', include: [{ model: Tag, as: 'Tag', attributes: ['id', 'name'] }], required: false }, // Changed from TemplateTags to Tags
           { model: TemplatePermission, as: 'TemplatePermissions', required: false },
           { 
             model: TemplateQuestion, 
@@ -667,7 +667,7 @@ const updateTemplate = [
       const updatedTemplate = await Template.findByPk(id, {
         include: [
           { model: User, as: 'User', attributes: ['id', 'name'], required: false },
-          { model: TemplateTag, as: 'TemplateTags', include: [{ model: Tag, as: 'Tag', attributes: ['id', 'name'] }], required: false },
+          { model: TemplateTag, as: 'Tags', include: [{ model: Tag, as: 'Tag', attributes: ['id', 'name'] }], required: false }, // Changed from TemplateTags to Tags
           { model: TemplatePermission, as: 'TemplatePermissions', required: false },
           { 
             model: TemplateQuestion, 
@@ -730,7 +730,7 @@ const getTemplates = async (req, res) => {
       { model: User, as: 'User', attributes: ['id', 'name', 'email'], required: false },
       {
         model: TemplateTag,
-        as: 'TemplateTags',
+        as: 'Tags', // Changed from TemplateTags to Tags
         include: [{ model: Tag, as: 'Tag', attributes: ['id', 'name'] }],
         required: false
       },
@@ -892,7 +892,7 @@ const getTemplate = [
       const template = await Template.findByPk(id, {
         include: [
           { model: User, as: 'User', attributes: ['id', 'name'], required: false },
-          { model: TemplateTag, as: 'TemplateTags', include: [{ model: Tag, as: 'Tag', attributes: ['id', 'name'] }], required: false },
+          { model: TemplateTag, as: 'Tags', include: [{ model: Tag, as: 'Tag', attributes: ['id', 'name'] }], required: false }, // Changed from TemplateTags to Tags
           { model: TemplatePermission, as: 'TemplatePermissions', required: false },
           { 
             model: TemplateQuestion, 
