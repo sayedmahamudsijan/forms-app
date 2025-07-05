@@ -37,7 +37,7 @@ module.exports = (sequelize, DataTypes) => {
     Template.hasMany(models.Comment, { foreignKey: 'template_id', as: 'Comments', onDelete: 'CASCADE' });
     Template.hasMany(models.Like, { foreignKey: 'template_id', as: 'Likes', onDelete: 'CASCADE' });
     Template.belongsToMany(models.Tag, { 
-      through: 'template_tags', 
+      through: { model: 'template_tags', timestamps: false }, 
       foreignKey: 'template_id', 
       otherKey: 'tag_id', 
       as: 'Tags',
