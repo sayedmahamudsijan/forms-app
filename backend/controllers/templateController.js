@@ -147,6 +147,7 @@ const createTemplate = [
         timestamp: new Date().toISOString(),
       });
 
+      // Validate user
       const user = await User.findByPk(user_id, {
         attributes: ['id', 'email', 'name'],
         transaction,
@@ -169,6 +170,7 @@ const createTemplate = [
         timestamp: new Date().toISOString(),
       });
 
+      // Validate topic
       if (isNaN(parsed_topic_id) || parsed_topic_id <= 0) {
         console.log(`❌ CreateTemplate failed: Topic ID ${topic_id} is not a valid integer`, {
           timestamp: new Date().toISOString(),
@@ -200,6 +202,7 @@ const createTemplate = [
         timestamp: new Date().toISOString(),
       });
 
+      // Handle image upload
       const image = req.files?.image?.[0];
       let image_url;
 
@@ -234,6 +237,7 @@ const createTemplate = [
         image_url = uploadResult.url;
       }
 
+      // Handle question attachments
       const questionAttachments = req.files?.questionAttachments || [];
       const attachmentUrls = [];
       const allowedAttachmentTypes = [
@@ -271,6 +275,7 @@ const createTemplate = [
         attachmentUrls[i] = uploadResult.url;
       }
 
+      // Create template
       console.log(`ℹ️ Attempting Template.create: user_id=${user_id}, topic_id=${parsed_topic_id}`, {
         timestamp: new Date().toISOString(),
         template_data: { user_id, title, description, topic_id: parsed_topic_id, is_public: parsedIsPublic },
@@ -296,6 +301,25 @@ const createTemplate = [
         }
       });
 
+      // Verify template creation
+      if (!template || !template.id) {
+        console.log(`❌ CreateTemplate failed: Template creation returned no ID`, {
+          timestamp: new Date().toISOString(),
+          user_id,
+          topic_id: parsed_topic_id,
+          template_data: { user_id, title, description, topic_id: parsed_topic_id, is_public: parsedIsPublic },
+        });
+        await transaction.rollback();
+        return res.status(500).json({ success: false, message: 'Failed to create template: No ID returned' });
+      }
+
+      console.log(`✅ Template created: ID ${template.id}, Title: ${title}`, {
+        timestamp: new Date().toISOString(),
+        user_id,
+        topic_id: parsed_topic_id,
+      });
+
+      // Create questions
       await TemplateQuestion.bulkCreate(
         questions.map((q, index) => ({
           template_id: template.id,
@@ -312,10 +336,18 @@ const createTemplate = [
           min_label: q.type === 'linear_scale' ? q.minLabel : null,
           max_label: q.type === 'linear_scale' ? q.maxLabel : null,
         })),
-        { transaction }
+        { 
+          transaction,
+          logging: (sql) => {
+            console.log(`ℹ️ TemplateQuestion.bulkCreate SQL: ${sql}`, {
+              timestamp: new Date().toISOString(),
+              template_id: template.id,
+            });
+          }
+        }
       );
 
-      // Resolve tag names to tag IDs
+      // Resolve and set tags
       console.log(`ℹ️ Resolving tags for template ${template.id}:`, {
         tags,
         timestamp: new Date().toISOString(),
@@ -367,6 +399,7 @@ const createTemplate = [
         });
       }
 
+      // Set permissions
       if (!parsedIsPublic && permissions.length > 0) {
         const permissionUsers = await User.findAll({
           where: { id: permissions },
@@ -385,10 +418,19 @@ const createTemplate = [
 
         await TemplatePermission.bulkCreate(
           permissions.map(user_id => ({ template_id: template.id, user_id })),
-          { transaction }
+          { 
+            transaction,
+            logging: (sql) => {
+              console.log(`ℹ️ TemplatePermission.bulkCreate SQL: ${sql}`, {
+                timestamp: new Date().toISOString(),
+                template_id: template.id,
+              });
+            }
+          }
         );
       }
 
+      // Fetch the created template with associations
       const createdTemplate = await Template.findByPk(template.id, {
         include: [
           { model: User, as: 'User', attributes: ['id', 'name'], required: false },
@@ -410,6 +452,7 @@ const createTemplate = [
         topic_id: parsed_topic_id,
         is_public: parsedIsPublic,
         permissions,
+        tags,
       });
       return res.status(201).json({ success: true, template: createdTemplate, message: 'Template created successfully' });
     } catch (error) {
@@ -433,6 +476,7 @@ const createTemplate = [
   },
 ];
 
+// Other functions remain unchanged
 const updateTemplate = [
   parseJsonFields,
   ...validateUpdateTemplate,
