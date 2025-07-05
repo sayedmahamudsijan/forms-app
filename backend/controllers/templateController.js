@@ -63,7 +63,10 @@ const validateCreateTemplate = [
       )
     )
     .withMessage('Linear scale questions must have valid integer min and max values, with min less than max'),
-  body('tags').isArray().withMessage('Tags must be an array'),
+  body('tags')
+    .isArray().withMessage('Tags must be an array')
+    .custom(tags => tags.every(tag => typeof tag === 'string' && tag.trim().length > 0))
+    .withMessage('Tags must be an array of non-empty strings'),
   body('permissions').isArray().withMessage('Permissions must be an array'),
 ];
 
@@ -96,7 +99,10 @@ const validateUpdateTemplate = [
       )
     )
     .withMessage('Linear scale questions must have valid integer min and max values, with min less than max'),
-  body('tags').isArray().withMessage('Tags must be an array'),
+  body('tags')
+    .isArray().withMessage('Tags must be an array')
+    .custom(tags => tags.every(tag => typeof tag === 'string' && tag.trim().length > 0))
+    .withMessage('Tags must be an array of non-empty strings'),
   body('permissions').isArray().withMessage('Permissions must be an array'),
 ];
 
@@ -117,7 +123,6 @@ const createTemplate = [
       return res.status(400).json({ success: false, errors: errors.array() });
     }
 
-    // Add explicit check for req.user and req.user.id
     if (!req.user || !req.user.id || isNaN(req.user.id) || req.user.id <= 0) {
       console.log(`❌ CreateTemplate failed: Invalid or missing user authentication`, {
         timestamp: new Date().toISOString(),
@@ -130,12 +135,10 @@ const createTemplate = [
     const transaction = await Template.sequelize.transaction();
     try {
       const { title, description, topic_id, is_public, questions, tags, permissions } = req.body;
-      const user_id = parseInt(req.user.id, 10); // Ensure user_id is an integer
-      // Coerce types explicitly (PATCH APPLIED HERE)
-      const parsed_topic_id = parseInt(topic_id, 10); // Ensure topic_id is an integer
-      const parsedIsPublic = is_public === true || is_public === 'true'; // Coerce is_public to boolean
+      const user_id = parseInt(req.user.id, 10);
+      const parsed_topic_id = parseInt(topic_id, 10);
+      const parsedIsPublic = is_public === true || is_public === 'true';
 
-      // Log normalized inputs
       console.log('ℹ️ Normalized inputs:', {
         user_id,
         parsed_topic_id,
@@ -145,7 +148,6 @@ const createTemplate = [
         timestamp: new Date().toISOString(),
       });
 
-      // Validate user exists
       const user = await User.findByPk(user_id, {
         attributes: ['id', 'email', 'name'],
         transaction,
@@ -164,12 +166,10 @@ const createTemplate = [
         return res.status(400).json({ success: false, message: `User ID ${user_id} does not exist` });
       }
 
-      // Log successful user validation
       console.log(`✅ User validated: ID ${user_id}, Email: ${user.email}, Name: ${user.name}`, {
         timestamp: new Date().toISOString(),
       });
 
-      // Validate topic_id
       if (isNaN(parsed_topic_id) || parsed_topic_id <= 0) {
         console.log(`❌ CreateTemplate failed: Topic ID ${topic_id} is not a valid integer`, {
           timestamp: new Date().toISOString(),
@@ -197,7 +197,6 @@ const createTemplate = [
         return res.status(400).json({ success: false, message: `Topic ID ${parsed_topic_id} does not exist` });
       }
 
-      // Log successful topic validation
       console.log(`✅ Topic validated: ID ${parsed_topic_id}, Name: ${topic.name}`, {
         timestamp: new Date().toISOString(),
       });
@@ -273,13 +272,11 @@ const createTemplate = [
         attachmentUrls[i] = uploadResult.url;
       }
 
-      // Log before Template.create to capture input
       console.log(`ℹ️ Attempting Template.create: user_id=${user_id}, topic_id=${parsed_topic_id}`, {
         timestamp: new Date().toISOString(),
         template_data: { user_id, title, description, topic_id: parsed_topic_id, is_public: parsedIsPublic },
       });
 
-      // Enable SQL logging for Template.create
       const template = await Template.create({
         user_id,
         title,
@@ -319,23 +316,61 @@ const createTemplate = [
         { transaction }
       );
 
-      const tagRecords = await Promise.all(
-        tags.map(async name => {
-          const [tag] = await Tag.findOrCreate({ where: { name }, transaction });
-          return tag;
-        }),
-      );
+      // Resolve tag names to tag IDs
+      console.log(`ℹ️ Resolving tags for template ${template.id}:`, {
+        tags,
+        timestamp: new Date().toISOString(),
+      });
 
-      await TemplateTag.bulkCreate(
-        tagRecords.map(tag => ({
-          template_id: template.id,
-          tag_id: tag.id,
-        })),
-        { transaction }
-      );
+      const tagNames = tags || [];
+      if (tagNames.length > 0) {
+        const tagsFromDb = await Tag.findAll({
+          where: { name: tagNames },
+          attributes: ['id', 'name'],
+          transaction,
+          logging: (sql) => {
+            console.log(`ℹ️ Tag.findAll SQL for tags: ${sql}`, {
+              timestamp: new Date().toISOString(),
+            });
+          }
+        });
+
+        const existingTagNames = tagsFromDb.map(t => t.name);
+        const missingTagNames = tagNames.filter(n => !existingTagNames.includes(n));
+        const tagRecords = [...tagsFromDb];
+
+        // Create missing tags
+        for (const name of missingTagNames) {
+          const newTag = await Tag.create({ name }, {
+            transaction,
+            logging: (sql) => {
+              console.log(`ℹ️ Tag.create SQL for '${name}': ${sql}`, {
+                timestamp: new Date().toISOString(),
+              });
+            }
+          });
+          tagRecords.push(newTag);
+        }
+
+        console.log(`✅ Resolved ${tagRecords.length} tags for template ${template.id}:`, {
+          tag_ids: tagRecords.map(t => t.id),
+          tag_names: tagRecords.map(t => t.name),
+          timestamp: new Date().toISOString(),
+        });
+
+        // Associate tags using setTags
+        await template.setTags(tagRecords, {
+          transaction,
+          logging: (sql) => {
+            console.log(`ℹ️ template.setTags SQL: ${sql}`, {
+              timestamp: new Date().toISOString(),
+              template_id: template.id,
+            });
+          }
+        });
+      }
 
       if (!parsedIsPublic && permissions.length > 0) {
-        // Validate permission user IDs
         const permissionUsers = await User.findAll({
           where: { id: permissions },
           attributes: ['id'],
@@ -418,9 +453,8 @@ const updateTemplate = [
     try {
       const { id } = req.params;
       const { title, description, topic_id, is_public, questions, tags, permissions } = req.body;
-      const user_id = parseInt(req.user.id, 10); // Ensure integer
+      const user_id = parseInt(req.user.id, 10);
 
-      // Validate user exists
       const user = await User.findByPk(user_id, { transaction });
       if (!user) {
         console.log(`❌ UpdateTemplate failed: User ID ${user_id} not found`, {
@@ -554,21 +588,61 @@ const updateTemplate = [
         { transaction }
       );
 
+      // Resolve tag names to tag IDs
+      console.log(`ℹ️ Resolving tags for template ${id}:`, {
+        tags,
+        timestamp: new Date().toISOString(),
+      });
+
       await TemplateTag.destroy({ where: { template_id: id }, transaction });
-      const tagRecords = await Promise.all(
-        tags.map(async name => {
-          const [tag] = await Tag.findOrCreate({ where: { name }, transaction });
-          return tag;
-        }),
-      );
-      await TemplateTag.bulkCreate(
-        tagRecords.map(tag => ({ template_id: id, tag_id: tag.id })),
-        { transaction }
-      );
+      const tagNames = tags || [];
+      if (tagNames.length > 0) {
+        const tagsFromDb = await Tag.findAll({
+          where: { name: tagNames },
+          attributes: ['id', 'name'],
+          transaction,
+          logging: (sql) => {
+            console.log(`ℹ️ Tag.findAll SQL for tags: ${sql}`, {
+              timestamp: new Date().toISOString(),
+            });
+          }
+        });
+
+        const existingTagNames = tagsFromDb.map(t => t.name);
+        const missingTagNames = tagNames.filter(n => !existingTagNames.includes(n));
+        const tagRecords = [...tagsFromDb];
+
+        for (const name of missingTagNames) {
+          const newTag = await Tag.create({ name }, {
+            transaction,
+            logging: (sql) => {
+              console.log(`ℹ️ Tag.create SQL for '${name}': ${sql}`, {
+                timestamp: new Date().toISOString(),
+              });
+            }
+          });
+          tagRecords.push(newTag);
+        }
+
+        console.log(`✅ Resolved ${tagRecords.length} tags for template ${id}:`, {
+          tag_ids: tagRecords.map(t => t.id),
+          tag_names: tagRecords.map(t => t.name),
+          timestamp: new Date().toISOString(),
+        });
+
+        await template.setTags(tagRecords, {
+          transaction,
+          logging: (sql) => {
+            console.log(`ℹ️ template.setTags SQL: ${sql}`, {
+              timestamp: new Date().toISOString(),
+              template_id: id,
+            });
+          }
+        });
+      }
 
       await TemplatePermission.destroy({ where: { template_id: id }, transaction });
       if (!is_public && permissions.length > 0) {
-        // Validate permission user IDs
         const permissionUsers = await User.findAll({
           where: { id: permissions },
           attributes: ['id'],
@@ -771,7 +845,7 @@ const deleteTemplate = [
 
     try {
       const { id } = req.params;
-      const user_id = parseInt(req.user.id, 10); // Ensure integer
+      const user_id = parseInt(req.user.id, 10);
 
       const template = await Template.findByPk(id);
       if (!template || (template.user_id !== user_id && !req.user.is_admin)) {
@@ -813,7 +887,7 @@ const getTemplate = [
 
     try {
       const { id } = req.params;
-      const user_id = parseInt(req.user?.id, 10); // Ensure integer
+      const user_id = parseInt(req.user?.id, 10);
 
       const template = await Template.findByPk(id, {
         include: [
@@ -881,7 +955,7 @@ const getResults = [
 
     try {
       const { id } = req.params;
-      const user_id = parseInt(req.user.id, 10); // Ensure integer
+      const user_id = parseInt(req.user.id, 10);
 
       const template = await Template.findByPk(id, {
         attributes: ['id', 'user_id', 'is_public'],
