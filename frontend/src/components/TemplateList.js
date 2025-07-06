@@ -79,7 +79,7 @@ function TemplateList({ templates, onDelete, onEdit, showActions = false, ariaLa
             code: err.code,
             timestamp: new Date().toISOString(),
           });
-          if (.response?.status === 429 && retryCount.current < maxRetries) {
+          if (err.response?.status === 429 && retryCount.current < maxRetries) {
             retryCount.current += 1;
             console.log(`✅ Retrying delete for template ${id}, attempt ${retryCount.current}, timestamp=${new Date().toISOString()}`);
             await new Promise(resolve => setTimeout(resolve, 1000 * retryCount.current));
