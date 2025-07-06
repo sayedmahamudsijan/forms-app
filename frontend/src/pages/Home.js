@@ -126,7 +126,7 @@ function Home() {
     }
     try {
       const token = getToken();
-      console.log(`✅ Deleting template ${templateId}`, { timestamp: new Date().toISOString() });
+      console.log(`✅ Deleting template ${templateId}, timestamp=${new Date().toISOString()}`);
       await axios.delete(`${API_BASE}/api/templates/${templateId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -150,21 +150,26 @@ function Home() {
     }
   };
 
+  const handleEdit = (templateId) => {
+    console.log(`✅ Navigating to edit template ${templateId}, timestamp=${new Date().toISOString()}`);
+    navigate(`/templates/${templateId}/edit`);
+  };
+
   const handleSearch = (e) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      console.log(`✅ Searching for: ${searchQuery}`, { timestamp: new Date().toISOString() });
+      console.log(`✅ Searching for: ${searchQuery}, timestamp=${new Date().toISOString()}`);
       navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
     }
   };
 
   const handleViewClick = (templateId, title) => {
-    console.log(`✅ Navigating to template: ${templateId} (${title})`, { timestamp: new Date().toISOString() });
+    console.log(`✅ Navigating to template: ${templateId} (${title}), timestamp=${new Date().toISOString()}`);
     navigate(`/templates/${templateId}`);
   };
 
   const handleRetry = async () => {
-    console.log('✅ Retrying fetch templates', { timestamp: new Date().toISOString() });
+    console.log('✅ Retrying fetch templates, timestamp=${new Date().toISOString()}');
     setError(null);
     setLoadingLatest(true);
     setLoadingTop(true);
@@ -172,7 +177,7 @@ function Home() {
 
     const fetchPublicTemplates = async () => {
       try {
-        console.log('✅ Retrying public templates', { timestamp: new Date().toISOString() });
+        console.log('✅ Retrying public templates, timestamp=${new Date().toISOString()}');
         const requests = [
           axios.get(`${API_BASE}/api/templates?latest=true`),
           axios.get(`${API_BASE}/api/templates?top=5`),
@@ -209,7 +214,7 @@ function Home() {
       }
       try {
         const token = getToken();
-        console.log('✅ Retrying my templates', { timestamp: new Date().toISOString() });
+        console.log('✅ Retrying my templates, timestamp=${new Date().toISOString()}');
         const response = await axios.get(`${API_BASE}/api/templates?user=true`, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -361,6 +366,7 @@ function Home() {
             <TemplateList
               templates={myTemplates}
               onDelete={handleDelete}
+              onEdit={handleEdit}
               showActions={true}
               aria-labelledby="my-templates"
             />
@@ -378,7 +384,7 @@ function Home() {
       ) : (
         <TemplateList
           templates={topTemplates}
-          onDelete={() => {}} // No delete for top templates
+          onDelete={() => {}}
           showActions={false}
           aria-labelledby="top-templates"
         />
