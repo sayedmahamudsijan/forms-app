@@ -53,47 +53,52 @@ function TemplateList({ templates, onDelete, onEdit, showActions = false, ariaLa
         console.error('❌ Attempted to delete invalid template_id:', id, `timestamp=${new Date().toISOString()}`);
         return;
       }
+      if (!user || !getToken()) {
+        setDeleteError(t('templateList.unauthorized'));
+        console.error('❌ No user or token available for delete:', { user, timestamp: new Date().toISOString() });
+        return;
+      }
       if (window.confirm(t('templateList.confirmDelete'))) {
         setDeletingId(id);
         setDeleteError(null);
         try {
           const token = getToken();
-          if (!token) {
-            throw new Error('No token available');
-          }
           console.log(`✅ Deleting template ${id}, timestamp=${new Date().toISOString()}`);
           const res = await axios.delete(`${API_BASE}/api/templates/${id}`, {
             headers: { Authorization: `Bearer ${token}` },
           });
-          console.log('✅ Template deleted:', id);
+          console.log('✅ Template deleted:', id, `timestamp=${new Date().toISOString()}`);
           onDelete(id);
           setDropdownId(null);
           retryCount.current = 0;
         } catch (err) {
-          console.error('❌ Delete error:', { status: err.response?.status, message: err.message, timestamp: new Date().toISOString() });
-          if (err.response?.status === 429 && retryCount.current < maxRetries) {
+          console.error('❌ Delete error:', {
+            templateId: id,
+            status: err.response?.status,
+            message: err.response?.data?.message || err.message,
+            code: err.code,
+            timestamp: new Date().toISOString(),
+          });
+          if (.response?.status === 429 && retryCount.current < maxRetries) {
             retryCount.current += 1;
-            console.log(`✅ Retrying delete for template ${id}, attempt ${retryCount.current}`);
+            console.log(`✅ Retrying delete for template ${id}, attempt ${retryCount.current}, timestamp=${new Date().toISOString()}`);
             await new Promise(resolve => setTimeout(resolve, 1000 * retryCount.current));
             return handleDelete(id);
           }
-          if (err.message === 'No token available' || err.response?.status === 401) {
-            setDeleteError(t('templateList.unauthorized'));
-            // Optionally redirect to login
-            // window.location.href = '/login';
-          } else {
-            setDeleteError(
-              err.response?.status === 429 ? t('templateList.rateLimit') :
-              err.response?.status === 404 ? t('templateList.notFound') :
-              err.response?.data?.message || t('templateList.deleteError')
-            );
-          }
+          setDeleteError(
+            err.response?.status === 401 ? t('templateList.unauthorized') :
+            err.response?.status === 403 ? t('templateList.forbidden') :
+            err.response?.status === 404 ? t('templateList.notFound') :
+            err.response?.status === 429 ? t('templateList.rateLimit') :
+            err.message === 'Network Error' ? t('templateList.networkError') :
+            t('templateList.deleteError')
+          );
         } finally {
           setDeletingId(null);
         }
       }
     },
-    [onDelete, t, getToken]
+    [onDelete, t, getToken, user]
   );
 
   const columns = useMemo(() => {
@@ -139,7 +144,7 @@ function TemplateList({ templates, onDelete, onEdit, showActions = false, ariaLa
         Cell: ({ value }) => (value ? t('templateList.yes') : t('templateList.no')),
       },
       {
-        Header: t('templateList.attachments'), // Added for attachments
+        Header: t('templateList.attachments'),
         accessor: 'TemplateQuestions',
         Cell: ({ value, row }) => {
           const attachments = value?.filter(q => q.attachment_url) || [];
@@ -175,7 +180,7 @@ function TemplateList({ templates, onDelete, onEdit, showActions = false, ariaLa
         },
       },
       {
-        Header: t('templateList.view'), // Added for View button
+        Header: t('templateList.view'),
         Cell: ({ row }) => {
           if (!row.original.id) {
             console.error(`❌ Missing template ID for view button: ${JSON.stringify(row.original)}, timestamp=${new Date().toISOString()}`);
@@ -192,7 +197,7 @@ function TemplateList({ templates, onDelete, onEdit, showActions = false, ariaLa
                 console.log(`✅ Navigating to template ${row.original.id}, timestamp=${new Date().toISOString()}`);
               }}
             >
-              {t('home.search')} {/* Reused 'search' as 'View' for consistency with Home.js */}
+              {t('home.search')}
             </Button>
           );
         },
@@ -223,17 +228,18 @@ function TemplateList({ templates, onDelete, onEdit, showActions = false, ariaLa
                 as={Link}
                 to={`/templates/${row.original.id}/edit`}
                 onClick={() => {
-                  if (onEdit) onEdit(row.original.id);
+                  if (onEdit) {
+                    console.log(`✅ Editing template ${row.original.id}, timestamp=${new Date().toISOString()}`);
+                    onEdit(row.original.id);
+                  }
                   setDropdownId(null);
                 }}
-                disabled={!canEditDelete || deletingId === row.original.id}
                 aria-label={t('templateList.editTemplate', { title: row.original.title })}
               >
                 {t('templateList.edit')}
               </Dropdown.Item>
               <Dropdown.Item
                 onClick={() => handleDelete(row.original.id)}
-                disabled={!canEditDelete || deletingId === row.original.id}
                 aria-label={t('templateList.deleteTemplate', { title: row.original.title })}
               >
                 {t('templateList.delete')}
