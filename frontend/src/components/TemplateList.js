@@ -10,7 +10,7 @@ import ReactMarkdown from 'react-markdown';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'https://forms-app-9zln.onrender.com';
 
-function TemplateList({ templates, onDelete, onEdit, showActions = false, ariaLabelledBy }) {
+function TemplateList({ templates, onDelete, onEdit, showActions = true, ariaLabelledBy }) {
   const { t } = useTranslation();
   const { user, getToken } = useContext(AuthContext);
   const { theme } = useContext(ThemeContext);
@@ -20,24 +20,35 @@ function TemplateList({ templates, onDelete, onEdit, showActions = false, ariaLa
   const retryCount = useRef(0);
   const maxRetries = 3;
 
-  // Log templates for debugging
+  // Log templates and auth context for debugging
   useEffect(() => {
-    console.log(`✅ TemplateList render: templates=${templates.length}, timestamp=${new Date().toISOString()}`);
+    console.log(`✅ TemplateList render:`, {
+      templateCount: templates.length,
+      userId: user?.id,
+      isAdmin: user?.is_admin,
+      token: getToken(),
+      showActions,
+      timestamp: new Date().toISOString(),
+    });
     templates.forEach((template) => {
       if (!template.id) {
         console.warn(`⚠️ Template missing ID: ${JSON.stringify(template)}, timestamp=${new Date().toISOString()}`);
+      }
+      if (!template.Topic?.name && template.topic_id) {
+        console.warn(`⚠️ Missing Topic.name for template_id=${template.id}, topic_id=${template.topic_id}, timestamp=${new Date().toISOString()}`);
       }
       if (template.TemplateQuestions?.length > 0) {
         console.log(`✅ Template ${template.id} has ${template.TemplateQuestions.length} questions, attachments=${template.TemplateQuestions.filter(q => q.attachment_url).length}, timestamp=${new Date().toISOString()}`);
       }
     });
-  }, [templates]);
+  }, [templates, user, getToken, showActions]);
 
   // Handle click outside dropdown
   useEffect(() => {
     const handleClickOutside = (event) => {
       const dropdownElement = document.querySelector(`#dropdown-menu-${dropdownId}`);
       if (dropdownId && dropdownElement && !dropdownElement.contains(event.target)) {
+        console.log(`✅ Closing dropdown for template_id=${dropdownId}, timestamp=${new Date().toISOString()}`);
         setDropdownId(null);
       }
     };
@@ -47,55 +58,66 @@ function TemplateList({ templates, onDelete, onEdit, showActions = false, ariaLa
 
   // Handle delete with retry
   const handleDelete = useCallback(
-    async (id) => {
+    async (id, title) => {
       if (!id) {
         setDeleteError(t('templateList.invalidTemplateId'));
-        console.error('❌ Attempted to delete invalid template_id:', id, `timestamp=${new Date().toISOString()}`);
+        console.error(`❌ Attempted to delete invalid template_id: ${id}, timestamp=${new Date().toISOString()}`);
         return;
       }
       if (!user || !getToken()) {
         setDeleteError(t('templateList.unauthorized'));
-        console.error('❌ No user or token available for delete:', { user, timestamp: new Date().toISOString() });
+        console.error(`❌ No user or token for delete:`, {
+          userId: user?.id,
+          timestamp: new Date().toISOString(),
+        });
         return;
       }
-      if (window.confirm(t('templateList.confirmDelete'))) {
-        setDeletingId(id);
-        setDeleteError(null);
-        try {
-          const token = getToken();
-          console.log(`✅ Deleting template ${id}, timestamp=${new Date().toISOString()}`);
-          const res = await axios.delete(`${API_BASE}/api/templates/${id}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          console.log('✅ Template deleted:', id, `timestamp=${new Date().toISOString()}`);
-          onDelete(id);
-          setDropdownId(null);
-          retryCount.current = 0;
-        } catch (err) {
-          console.error('❌ Delete error:', {
-            templateId: id,
-            status: err.response?.status,
-            message: err.response?.data?.message || err.message,
-            code: err.code,
-            timestamp: new Date().toISOString(),
-          });
-          if (err.response?.status === 429 && retryCount.current < maxRetries) {
-            retryCount.current += 1;
-            console.log(`✅ Retrying delete for template ${id}, attempt ${retryCount.current}, timestamp=${new Date().toISOString()}`);
-            await new Promise(resolve => setTimeout(resolve, 1000 * retryCount.current));
-            return handleDelete(id);
-          }
-          setDeleteError(
-            err.response?.status === 401 ? t('templateList.unauthorized') :
-            err.response?.status === 403 ? t('templateList.forbidden') :
-            err.response?.status === 404 ? t('templateList.notFound') :
-            err.response?.status === 429 ? t('templateList.rateLimit') :
-            err.message === 'Network Error' ? t('templateList.networkError') :
-            t('templateList.deleteError')
-          );
-        } finally {
-          setDeletingId(null);
+      if (!window.confirm(t('templateList.confirmDelete'))) {
+        console.log(`✅ Delete cancelled for template_id=${id}, title=${title}, timestamp=${new Date().toISOString()}`);
+        return;
+      }
+      setDeletingId(id);
+      setDeleteError(null);
+      try {
+        const token = getToken();
+        console.log(`✅ Deleting template ${id}, title=${title}, user_id=${user.id}, timestamp=${new Date().toISOString()}`);
+        await axios.delete(`${API_BASE}/api/templates/${id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        console.log(`✅ Template deleted: id=${id}, title=${title}, timestamp=${new Date().toISOString()}`);
+        onDelete(id);
+        setDropdownId(null);
+        retryCount.current = 0;
+      } catch (err) {
+        console.error(`❌ Delete error:`, {
+          templateId: id,
+          title,
+          status: err.response?.status,
+          message: err.response?.data?.message || err.message,
+          code: err.code,
+          timestamp: new Date().toISOString(),
+        });
+        if (err.response?.status === 429 && retryCount.current < maxRetries) {
+          retryCount.current += 1;
+          console.log(`✅ Retrying delete for template ${id}, attempt ${retryCount.current}, timestamp=${new Date().toISOString()}`);
+          await new Promise((resolve) => setTimeout(resolve, 1000 * retryCount.current));
+          return handleDelete(id, title);
         }
+        setDeleteError(
+          err.response?.status === 401
+            ? t('templateList.unauthorized')
+            : err.response?.status === 403
+            ? t('templateList.forbidden')
+            : err.response?.status === 404
+            ? t('templateList.notFound')
+            : err.response?.status === 429
+            ? t('templateList.rateLimit')
+            : err.message === 'Network Error'
+            ? t('templateList.networkError')
+            : t('templateList.deleteError')
+        );
+      } finally {
+        setDeletingId(null);
       }
     },
     [onDelete, t, getToken, user]
@@ -114,10 +136,10 @@ function TemplateList({ templates, onDelete, onEdit, showActions = false, ariaLa
           return (
             <Link
               to={`/templates/${row.original.id}`}
-              aria-label={t('templateList.viewTemplate', { title: row.original.title })}
+              aria-label={t('templateList.viewTemplate', { title: row.original.title || t('templateList.unknown') })}
               id={`template-link-${row.original.id}`}
             >
-              {row.original.title}
+              {row.original.title || t('templateList.unknown')}
             </Link>
           );
         },
@@ -125,7 +147,7 @@ function TemplateList({ templates, onDelete, onEdit, showActions = false, ariaLa
       {
         Header: t('templateList.description'),
         accessor: 'description',
-        Cell: ({ value }) => <ReactMarkdown>{value || ''}</ReactMarkdown>,
+        Cell: ({ value }) => <ReactMarkdown>{value || t('templateList.noDescription')}</ReactMarkdown>,
       },
       {
         Header: t('templateList.topic'),
@@ -147,7 +169,7 @@ function TemplateList({ templates, onDelete, onEdit, showActions = false, ariaLa
         Header: t('templateList.attachments'),
         accessor: 'TemplateQuestions',
         Cell: ({ value, row }) => {
-          const attachments = value?.filter(q => q.attachment_url) || [];
+          const attachments = value?.filter((q) => q.attachment_url) || [];
           if (!row.original.id) {
             console.error(`❌ Missing template ID for attachments: ${JSON.stringify(row.original)}, timestamp=${new Date().toISOString()}`);
             return <span>{t('templateList.noAttachments')}</span>;
@@ -165,9 +187,16 @@ function TemplateList({ templates, onDelete, onEdit, showActions = false, ariaLa
                       href={question.attachment_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      aria-label={t('templatePage.viewAttachment', { title: question.title || t('templatePage.unknownQuestion') })}
+                      aria-label={t('templatePage.viewAttachment', {
+                        title: question.title || t('templatePage.unknownQuestion'),
+                      })}
                       onClick={() => {
-                        console.log(`✅ Viewing attachment: url=${question.attachment_url}, questionId=${question.id}, templateId=${row.original.id}, timestamp=${new Date().toISOString()}`);
+                        console.log(`✅ Viewing attachment:`, {
+                          url: question.attachment_url,
+                          questionId: question.id,
+                          templateId: row.original.id,
+                          timestamp: new Date().toISOString(),
+                        });
                       }}
                     >
                       {t('templatePage.viewAttachment')} ({fileType})
@@ -192,9 +221,9 @@ function TemplateList({ templates, onDelete, onEdit, showActions = false, ariaLa
               to={`/templates/${row.original.id}`}
               variant={theme === 'dark' ? 'outline-light' : 'outline-primary'}
               size="sm"
-              aria-label={t('templateList.viewTemplate', { title: row.original.title })}
+              aria-label={t('templateList.viewTemplate', { title: row.original.title || t('templateList.unknown') })}
               onClick={() => {
-                console.log(`✅ Navigating to template ${row.original.id}, timestamp=${new Date().toISOString()}`);
+                console.log(`✅ Navigating to template ${row.original.id}, title=${row.original.title}, timestamp=${new Date().toISOString()}`);
               }}
             >
               {t('templateList.view')}
@@ -209,7 +238,7 @@ function TemplateList({ templates, onDelete, onEdit, showActions = false, ariaLa
         Header: t('templateList.actions'),
         Cell: ({ row }) => {
           if (!row.original.id) {
-            console.error('❌ Invalid template_id in actions:', row.original, `timestamp=${new Date().toISOString()}`);
+            console.error(`❌ Invalid template_id in actions: ${JSON.stringify(row.original)}, timestamp=${new Date().toISOString()}`);
             return <span>{t('templateList.invalidTemplateId')}</span>;
           }
           const canEditDelete = user && (user.id === row.original.user_id || user.is_admin);
@@ -231,26 +260,26 @@ function TemplateList({ templates, onDelete, onEdit, showActions = false, ariaLa
                 setDropdownId(isOpen ? row.original.id : null);
               }}
               show={dropdownId === row.original.id}
-              aria-label={t('templateList.actionsFor', { title: row.original.title })}
+              aria-label={t('templateList.actionsFor', { title: row.original.title || t('templateList.unknown') })}
+              disabled={!canEditDelete}
             >
               <Dropdown.Item
                 as={Link}
                 to={`/templates/${row.original.id}/edit`}
                 onClick={() => {
-                  console.log(`✅ Editing template ${row.original.id}, timestamp=${new Date().toISOString()}`);
+                  console.log(`✅ Editing template ${row.original.id}, title=${row.original.title}, timestamp=${new Date().toISOString()}`);
                   if (onEdit) onEdit(row.original.id);
                   setDropdownId(null);
                 }}
-                aria-label={t('templateList.editTemplate', { title: row.original.title })}
+                aria-label={t('templateList.editTemplate', { title: row.original.title || t('templateList.unknown') })}
+                disabled={!canEditDelete}
               >
                 {t('templateList.edit')}
               </Dropdown.Item>
               <Dropdown.Item
-                onClick={() => {
-                  console.log(`✅ Delete clicked for template_id=${row.original.id}, timestamp=${new Date().toISOString()}`);
-                  handleDelete(row.original.id);
-                }}
-                aria-label={t('templateList.deleteTemplate', { title: row.original.title })}
+                onClick={() => handleDelete(row.original.id, row.original.title)}
+                aria-label={t('templateList.deleteTemplate', { title: row.original.title || t('templateList.unknown') })}
+                disabled={!canEditDelete || deletingId === row.original.id}
               >
                 {t('templateList.delete')}
                 {deletingId === row.original.id && (
@@ -266,7 +295,7 @@ function TemplateList({ templates, onDelete, onEdit, showActions = false, ariaLa
     return baseColumns;
   }, [dropdownId, handleDelete, onEdit, showActions, t, user, theme, deletingId]);
 
-  const data = useMemo(() => templates.filter(t => t.id), [templates]);
+  const data = useMemo(() => templates.filter((t) => t.id), [templates]);
 
   const { getTableProps, getTableBodyProps, headerGroups, rows, prepareRow } = useTable({
     columns,
@@ -288,7 +317,7 @@ function TemplateList({ templates, onDelete, onEdit, showActions = false, ariaLa
           {(deleteError === t('templateList.deleteError') || deleteError === t('templateList.rateLimit')) && (
             <Button
               variant="link"
-              onClick={() => handleDelete(dropdownId)}
+              onClick={() => handleDelete(deletingId, templates.find((t) => t.id === deletingId)?.title)}
               aria-label={t('templateList.retry')}
               id="retry-delete-button"
             >
