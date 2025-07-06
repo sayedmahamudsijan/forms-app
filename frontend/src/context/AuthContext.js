@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Alert, Button } from 'react-bootstrap';
 import jwtDecode from 'jwt-decode';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const API_BASE = process.env.REACT_APP_API_URL || 'https://forms-app-9zln.onrender.com';
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
@@ -52,8 +52,13 @@ export const AuthProvider = ({ children }) => {
   const refreshToken = useCallback(async () => {
     try {
       console.log(`✅ Attempting to refresh token, timestamp=${new Date().toISOString()}`);
-      const response = await axios.post(`${API_BASE}/api/auth/refresh-token`, {}, { withCredentials: true });
-      console.log('✅ Token refreshed');
+      const token = getToken();
+      const response = await axios.post(
+        `${API_BASE}/api/auth/refresh-token`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } } // Use Bearer token instead of cookies
+      );
+      console.log('✅ Token refreshed', { timestamp: new Date().toISOString() });
       if (response.data.success && response.data.token && isValidToken(response.data.token)) {
         localStorage.setItem('token', response.data.token);
         axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
@@ -69,14 +74,16 @@ export const AuthProvider = ({ children }) => {
       });
       if (err.response?.status === 429 && refreshRetryCount.current < maxRetries) {
         refreshRetryCount.current += 1;
-        console.log(`✅ Retrying token refresh, attempt ${refreshRetryCount.current}`);
-        await new Promise(resolve => setTimeout(resolve, 1000 * refreshRetryCount.current));
+        console.log(`✅ Retrying token refresh, attempt ${refreshRetryCount.current}, timestamp=${new Date().toISOString()}`);
+        await new Promise((resolve) => setTimeout(resolve, 1000 * refreshRetryCount.current));
         return refreshToken();
       }
       setError(
-        err.response?.status === 429 ? t('auth.rateLimit') :
-        err.response?.status === 401 ? t('auth.unauthorized') :
-        t('auth.refreshFailed')
+        err.response?.status === 429
+          ? t('auth.rateLimit')
+          : err.response?.status === 401
+          ? t('auth.unauthorized')
+          : t('auth.refreshFailed')
       );
       localStorage.removeItem('token');
       delete axios.defaults.headers.common['Authorization'];
@@ -132,15 +139,18 @@ export const AuthProvider = ({ children }) => {
       });
       if (err.response?.status === 429 && fetchRetryCount.current < maxRetries) {
         fetchRetryCount.current += 1;
-        console.log(`✅ Retrying user fetch, attempt ${fetchRetryCount.current}`);
-        await new Promise(resolve => setTimeout(resolve, 1000 * fetchRetryCount.current));
+        console.log(`✅ Retrying user fetch, attempt ${fetchRetryCount.current}, timestamp=${new Date().toISOString()}`);
+        await new Promise((resolve) => setTimeout(resolve, 1000 * fetchRetryCount.current));
         return fetchUser();
       }
       setError(
-        err.response?.status === 401 ? t('auth.unauthorized') :
-        err.response?.status === 429 ? t('auth.rateLimit') :
-        err.response?.status === 403 ? t('auth.invalidToken') :
-        t('auth.fetchError')
+        err.response?.status === 401
+          ? t('auth.unauthorized')
+          : err.response?.status === 429
+          ? t('auth.rateLimit')
+          : err.response?.status === 403
+          ? t('auth.invalidToken')
+          : t('auth.fetchError')
       );
       localStorage.removeItem('token');
       delete axios.defaults.headers.common['Authorization'];
@@ -153,8 +163,8 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     // Set up axios interceptor for 401 errors
     const interceptor = axios.interceptors.response.use(
-      response => response,
-      async error => {
+      (response) => response,
+      async (error) => {
         const originalRequest = error.config;
         if (error.response?.status === 401 && !originalRequest._retry) {
           originalRequest._retry = true;
@@ -200,15 +210,17 @@ export const AuthProvider = ({ children }) => {
       });
       if (err.response?.status === 429 && loginRetryCount.current < maxRetries) {
         loginRetryCount.current += 1;
-        console.log(`✅ Retrying login, attempt ${loginRetryCount.current}`);
-        await new Promise(resolve => setTimeout(resolve, 1000 * loginRetryCount.current));
+        console.log(`✅ Retrying login, attempt ${loginRetryCount.current}, timestamp=${new Date().toISOString()}`);
+        await new Promise((resolve) => setTimeout(resolve, 1000 * loginRetryCount.current));
         return login(email, password);
       }
       setLoginLoading(false);
       const message =
-        err.response?.status === 400 ? err.response?.data?.message || t('auth.invalidCredentials') :
-        err.response?.status === 429 ? t('auth.rateLimit') :
-        t('auth.loginFailed');
+        err.response?.status === 400
+          ? err.response?.data?.message || t('auth.invalidCredentials')
+          : err.response?.status === 429
+          ? t('auth.rateLimit')
+          : t('auth.loginFailed');
       setError(message);
       return { success: false, message };
     }
@@ -240,15 +252,17 @@ export const AuthProvider = ({ children }) => {
       });
       if (err.response?.status === 429 && registerRetryCount.current < maxRetries) {
         registerRetryCount.current += 1;
-        console.log(`✅ Retrying register, attempt ${registerRetryCount.current}`);
-        await new Promise(resolve => setTimeout(resolve, 1000 * registerRetryCount.current));
+        console.log(`✅ Retrying register, attempt ${registerRetryCount.current}, timestamp=${new Date().toISOString()}`);
+        await new Promise((resolve) => setTimeout(resolve, 1000 * registerRetryCount.current));
         return register(name, email, password);
       }
       setRegisterLoading(false);
       const message =
-        err.response?.status === 400 ? err.response?.data?.message || err.response?.data?.errors?.[0]?.msg || t('auth.registerFailed') :
-        err.response?.status === 429 ? t('auth.rateLimit') :
-        t('auth.registerFailed');
+        err.response?.status === 400
+          ? err.response?.data?.message || err.response?.data?.errors?.[0]?.msg || t('auth.registerFailed')
+          : err.response?.status === 429
+          ? t('auth.rateLimit')
+          : t('auth.registerFailed');
       setError(message);
       return { success: false, message };
     }
@@ -283,9 +297,11 @@ export const AuthProvider = ({ children }) => {
         timestamp: new Date().toISOString(),
       });
       setError(
-        err.response?.status === 400 ? err.response?.data?.message || t('auth.updateFailed') :
-        err.response?.status === 429 ? t('auth.rateLimit') :
-        t('auth.updateFailed')
+        err.response?.status === 400
+          ? err.response?.data?.message || t('auth.updateFailed')
+          : err.response?.status === 429
+          ? t('auth.rateLimit')
+          : t('auth.updateFailed')
       );
       return { success: false, message: t('auth.updateFailed') };
     }
@@ -302,7 +318,7 @@ export const AuthProvider = ({ children }) => {
   const handleRetry = async () => {
     setError(null);
     console.log(`✅ Retrying auth action, timestamp=${new Date().toISOString()}`);
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
     await fetchUser();
   };
 
