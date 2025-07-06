@@ -29,7 +29,7 @@ function AdminPanel() {
   // Fetch users with pagination
   const fetchUsers = useCallback(async () => {
     if (!user) {
-      setError(t('admin.unauthorized'));
+      setError(t('admin.unauthorized', { defaultValue: 'Unauthorized access' }));
       setLoading(false);
       return;
     }
@@ -47,9 +47,9 @@ function AdminPanel() {
     } catch (err) {
       console.error('❌ Error fetching users:', { status: err.response?.status });
       setError(
-        err.response?.status === 401 ? t('admin.unauthorized') :
-        err.response?.status === 429 ? t('admin.rateLimit') :
-        t('admin.fetchError')
+        err.response?.status === 401 ? t('admin.unauthorized', { defaultValue: 'Unauthorized access' }) :
+        err.response?.status === 429 ? t('admin.rateLimit', { defaultValue: 'Rate limit exceeded' }) :
+        t('admin.fetchError', { defaultValue: 'Failed to fetch users' })
       );
     } finally {
       setLoading(false);
@@ -74,15 +74,15 @@ function AdminPanel() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       console.log('✅ Topic added:', res.data.message);
-      setTopicSuccess(res.data.message || t('admin.topicSuccess'));
+      setTopicSuccess(res.data.message || t('admin.topicSuccess', { defaultValue: 'Topic added successfully' }));
       reset();
     } catch (err) {
       console.error('❌ Error adding topic:', { status: err.response?.status });
       setTopicError(
-        err.response?.status === 401 ? t('admin.unauthorized') :
-        err.response?.status === 429 ? t('admin.rateLimit') :
-        err.response?.status === 409 ? t('admin.topicConflict') :
-        t('admin.topicError')
+        err.response?.status === 401 ? t('admin.unauthorized', { defaultValue: 'Unauthorized access' }) :
+        err.response?.status === 429 ? t('admin.rateLimit', { defaultValue: 'Rate limit exceeded' }) :
+        err.response?.status === 409 ? t('admin.topicConflict', { defaultValue: 'Topic already exists' }) :
+        t('admin.topicError', { defaultValue: 'Failed to add topic' })
       );
     } finally {
       setTopicSubmitting(false);
@@ -91,7 +91,7 @@ function AdminPanel() {
 
   // Update user status with retry logic
   const updateUserStatus = async (id, data, isSelfAdminToggle = false, retryCount = 0) => {
-    if (isSelfAdminToggle && !window.confirm(t('admin.confirmSelfAdminRemoval'))) {
+    if (isSelfAdminToggle && !window.confirm(t('admin.confirmSelfAdminRemoval', { defaultValue: 'Are you sure you want to remove your own admin status?' }))) {
       return;
     }
 
@@ -107,7 +107,7 @@ function AdminPanel() {
       setUsers((prevUsers) =>
         prevUsers.map((u) => (u.id === id ? { ...u, ...data, version: u.version + 1 } : u))
       );
-      setMessage({ type: 'success', text: res.data.message || t('admin.updateSuccess') });
+      setMessage({ type: 'success', text: res.data.message || t('admin.updateSuccess', { defaultValue: 'User updated successfully' }) });
     } catch (err) {
       console.error('❌ Error updating user:', { status: err.response?.status });
       if (err.response?.status === 409 && retryCount < 3) {
@@ -117,10 +117,10 @@ function AdminPanel() {
       }
       setMessage({
         type: 'danger',
-        text: err.response?.status === 401 ? t('admin.unauthorized') :
-              err.response?.status === 429 ? t('admin.rateLimit') :
-              err.response?.status === 409 ? t('admin.conflictError') :
-              err.response?.data?.message || t('admin.updateError'),
+        text: err.response?.status === 401 ? t('admin.unauthorized', { defaultValue: 'Unauthorized access' }) :
+              err.response?.status === 429 ? t('admin.rateLimit', { defaultValue: 'Rate limit exceeded' }) :
+              err.response?.status === 409 ? t('admin.conflictError', { defaultValue: 'Update conflict occurred' }) :
+              err.response?.data?.message || t('admin.updateError', { defaultValue: 'Failed to update user' }),
       });
     } finally {
       setUpdatingIds((prev) => {
@@ -133,7 +133,7 @@ function AdminPanel() {
 
   // Delete user with retry logic
   const deleteUser = async (id, name, retryCount = 0) => {
-    if (!window.confirm(t('admin.confirmDelete', { name }))) return;
+    if (!window.confirm(t('admin.confirmDelete', { defaultValue: 'Are you sure you want to delete user {{name}}?', name }))) return;
     setUpdatingIds((prev) => new Set(prev).add(id));
     setMessage(null);
     try {
@@ -144,7 +144,7 @@ function AdminPanel() {
       });
       console.log('✅ User deleted:', id);
       setUsers((prevUsers) => prevUsers.filter((u) => u.id !== id));
-      setMessage({ type: 'success', text: t('admin.deleteSuccess') });
+      setMessage({ type: 'success', text: t('admin.deleteSuccess', { defaultValue: 'User deleted successfully' }) });
     } catch (err) {
       console.error('❌ Error deleting user:', { status: err.response?.status });
       if (err.response?.status === 409 && retryCount < 3) {
@@ -154,9 +154,9 @@ function AdminPanel() {
       }
       setMessage({
         type: 'danger',
-        text: err.response?.status === 401 ? t('admin.unauthorized') :
-              err.response?.status === 429 ? t('admin.rateLimit') :
-              t('admin.deleteError'),
+        text: err.response?.status === 401 ? t('admin.unauthorized', { defaultValue: 'Unauthorized access' }) :
+              err.response?.status === 429 ? t('admin.rateLimit', { defaultValue: 'Rate limit exceeded' }) :
+              t('admin.deleteError', { defaultValue: 'Failed to delete user' }),
       });
     } finally {
       setUpdatingIds((prev) => {
@@ -180,10 +180,10 @@ function AdminPanel() {
 
   // Table columns
   const columns = [
-    { Header: t('admin.name'), accessor: 'name' },
-    { Header: t('admin.email'), accessor: 'email' },
+    { Header: t('admin.name', { defaultValue: 'Name' }), accessor: 'name' },
+    { Header: t('admin.email', { defaultValue: 'Email' }), accessor: 'email' },
     {
-      Header: t('admin.isAdmin'),
+      Header: t('admin.isAdmin', { defaultValue: 'Admin Status' }),
       accessor: 'is_admin',
       Cell: ({ row }) => {
         const u = row.original;
@@ -195,17 +195,17 @@ function AdminPanel() {
               checked={u.is_admin}
               disabled={disabled}
               onChange={() => toggleAdmin(u.id, !u.is_admin, u.version)}
-              aria-label={t('admin.toggleAdmin', { name: u.name })}
+              aria-label={t('admin.toggleAdmin', { defaultValue: 'Toggle admin status for {{name}}', name: u.name })}
               className="me-2"
               id={`admin-checkbox-${u.id}`}
             />
-            {updatingIds.has(u.id) && <Spinner animation="border" size="sm" aria-label={t('admin.updating')} />}
+            {updatingIds.has(u.id) && <Spinner animation="border" size="sm" aria-label={t('admin.updating', { defaultValue: 'Updating' })} />}
           </span>
         );
       },
     },
     {
-      Header: t('admin.isBlocked'),
+      Header: t('admin.isBlocked', { defaultValue: 'Blocked Status' }),
       accessor: 'is_blocked',
       Cell: ({ row }) => {
         const u = row.original;
@@ -217,17 +217,17 @@ function AdminPanel() {
               checked={u.is_blocked}
               disabled={disabled}
               onChange={() => toggleBlocked(u.id, !u.is_blocked, u.version)}
-              aria-label={t('admin.toggleBlocked', { name: u.name })}
+              aria-label={t('admin.toggleBlocked', { defaultValue: 'Toggle blocked status for {{name}}', name: u.name })}
               className="me-2"
               id={`blocked-checkbox-${u.id}`}
             />
-            {updatingIds.has(u.id) && <Spinner animation="border" size="sm" aria-label={t('admin.updating')} />}
+            {updatingIds.has(u.id) && <Spinner animation="border" size="sm" aria-label={t('admin.updating', { defaultValue: 'Updating' })} />}
           </span>
         );
       },
     },
     {
-      Header: t('admin.actions'),
+      Header: t('admin.actions', { defaultValue: 'Actions' }),
       Cell: ({ row }) => {
         const u = row.original;
         const disabled = updatingIds.has(u.id) || user.id === u.id;
@@ -237,18 +237,18 @@ function AdminPanel() {
               variant={theme === 'dark' ? 'outline-light' : 'outline-secondary'}
               size="sm"
               disabled={disabled}
-              aria-label={t('admin.actionsFor', { name: u.name })}
+              aria-label={t('admin.actionsFor', { defaultValue: 'Actions for {{name}}', name: u.name })}
               id={`actions-dropdown-${u.id}`}
             >
-              {t('admin.actions')}
+              {t('admin.actions', { defaultValue: 'Actions' })}
             </Dropdown.Toggle>
             <Dropdown.Menu>
               <Dropdown.Item
                 onClick={() => deleteUser(u.id, u.name)}
                 disabled={disabled}
-                aria-label={t('admin.deleteUser', { name: u.name })}
+                aria-label={t('admin.deleteUser', { defaultValue: 'Delete user {{name}}', name: u.name })}
               >
-                {t('admin.delete')}
+                {t('admin.delete', { defaultValue: 'Delete' })}
               </Dropdown.Item>
             </Dropdown.Menu>
           </Dropdown>
@@ -264,10 +264,10 @@ function AdminPanel() {
 
   return (
     <div className={`container my-4 ${theme === 'dark' ? 'text-light' : ''}`}>
-      <h2 id="admin-title" className="mb-4">{t('admin.title')}</h2>
+      <h2 id="admin-title" className="mb-4">{t('admin.title', { defaultValue: 'Admin Panel' })}</h2>
 
       {/* Topic Creation Form */}
-      <h4>{t('admin.addTopic')}</h4>
+      <h4>{t('admin.addTopic', { defaultValue: 'Add Topic' })}</h4>
       {topicError && (
         <Alert
           variant="danger"
@@ -283,11 +283,11 @@ function AdminPanel() {
               setTopicError(null);
               setTopicSubmitting(false);
             }}
-            aria-label={t('admin.retry')}
+            aria-label={t('admin.retry', { defaultValue: 'Retry' })}
             className="ms-2"
             id="retry-topic-button"
           >
-            {t('admin.retry')}
+            {t('admin.retry', { defaultValue: 'Retry' })}
           </Button>
         </Alert>
       )}
@@ -302,15 +302,18 @@ function AdminPanel() {
           {topicSuccess}
         </Alert>
       )}
-      <Form onSubmit={handleSubmit(onAddTopic)} aria-label={t('admin.addTopicForm')} className="mb-4">
+      <Form onSubmit={handleSubmit(onAddTopic)} aria-label={t('admin.addTopicForm', { defaultValue: 'Add Topic Form' })} className="mb-4">
         <Form.Group className="mb-3" controlId="topicName">
-          <Form.Label>{t('admin.topicName')}</Form.Label>
+          <Form.Label>{t('admin.topicName', { defaultValue: 'Topic Name' })}</Form.Label>
           <Form.Control
             type="text"
-            {...register('name', { required: t('admin.topicRequired'), maxLength: { value: 100, message: t('admin.topicMaxLength') } })}
+            {...register('name', {
+              required: t('admin.topicRequired', { defaultValue: 'Topic name is required' }),
+              maxLength: { value: 100, message: t('admin.topicMaxLength', { defaultValue: 'Topic name must be less than 100 characters' }) }
+            })}
             isInvalid={!!errors.name}
-            placeholder={t('admin.topicPlaceholder')}
-            aria-label={t('admin.topicInputLabel')}
+            placeholder={t('admin.topicPlaceholder', { defaultValue: 'Enter topic name' })}
+            aria-label={t('admin.topicInputLabel', { defaultValue: 'Topic Name' })}
             id="topic-input"
           />
           <Form.Control.Feedback type="invalid">{errors.name?.message}</Form.Control.Feedback>
@@ -319,22 +322,22 @@ function AdminPanel() {
           type="submit"
           variant={theme === 'dark' ? 'outline-light' : 'primary'}
           disabled={topicSubmitting}
-          aria-label={t('admin.addTopic')}
+          aria-label={t('admin.addTopic', { defaultValue: 'Add Topic' })}
           id="add-topic-button"
         >
           {topicSubmitting ? (
             <>
               <Spinner as="span" animation="border" size="sm" className="me-2" aria-hidden="true" />
-              {t('admin.submitting')}
+              {t('admin.submitting', { defaultValue: 'Submitting' })}
             </>
           ) : (
-            t('admin.addTopic')
+            t('admin.addTopic', { defaultValue: 'Add Topic' })
           )}
         </Button>
       </Form>
 
       {/* User Management */}
-      <h4>{t('admin.userManagement')}</h4>
+      <h4>{t('admin.userManagement', { defaultValue: 'User Management' })}</h4>
       {message && (
         <Alert
           variant={message.type}
@@ -348,17 +351,17 @@ function AdminPanel() {
             <Button
               variant="link"
               onClick={() => setMessage(null)}
-              aria-label={t('admin.retry')}
+              aria-label={t('admin.retry', { defaultValue: 'Retry' })}
               className="ms-2"
               id="retry-message-button"
             >
-              {t('admin.retry')}
+              {t('admin.retry', { defaultValue: 'Retry' })}
             </Button>
           )}
         </Alert>
       )}
       {loading && (
-        <Spinner animation="border" role="status" aria-label={t('admin.loading')} />
+        <Spinner animation="border" role="status" aria-label={t('admin.loading', { defaultValue: 'Loading' })} />
       )}
       {error && (
         <Alert variant="danger" role="alert" aria-live="assertive" dismissible onClose={() => setError(null)}>
@@ -366,16 +369,16 @@ function AdminPanel() {
           <Button
             variant="link"
             onClick={fetchUsers}
-            aria-label={t('admin.retry')}
+            aria-label={t('admin.retry', { defaultValue: 'Retry' })}
             className="ms-2"
             id="retry-users-button"
           >
-            {t('admin.retry')}
+            {t('admin.retry', { defaultValue: 'Retry' })}
           </Button>
         </Alert>
       )}
       {!loading && users.length === 0 && (
-        <p aria-live="polite">{t('admin.noUsers')}</p>
+        <p aria-live="polite">{t('admin.noUsers', { defaultValue: 'No users found' })}</p>
       )}
       {!loading && users.length > 0 && (
         <div className="table-responsive">
@@ -385,10 +388,10 @@ function AdminPanel() {
             hover
             variant={theme === 'dark' ? 'dark' : 'light'}
             {...getTableProps()}
-            aria-label={t('admin.tableLabel')}
+            aria-label={t('admin.tableLabel', { defaultValue: 'Users Table' })}
             id="users-table"
           >
-            <caption className="visually-hidden">{t('admin.tableCaption')}</caption>
+            <caption className="visually-hidden">{t('admin.tableCaption', { defaultValue: 'List of users with their details and actions' })}</caption>
             <thead>
               {headerGroups.map((headerGroup) => {
                 const { key, ...restHeaderGroupProps } = headerGroup.getHeaderGroupProps();
@@ -430,20 +433,20 @@ function AdminPanel() {
               variant={theme === 'dark' ? 'outline-light' : 'outline-secondary'}
               disabled={page === 1}
               onClick={() => setPage((prev) => prev - 1)}
-              aria-label={t('admin.prevPage')}
+              aria-label={t('admin.prevPage', { defaultValue: 'Previous Page' })}
               id="prev-page-button"
             >
-              {t('admin.prevPage')}
+              {t('admin.prevPage', { defaultValue: 'Previous Page' })}
             </Button>
-            <span aria-live="polite">{t('admin.page', { page, totalPages })}</span>
+            <span aria-live="polite">{t('admin.page', { defaultValue: 'Page {{page}} of {{totalPages}}', page, totalPages })}</span>
             <Button
               variant={theme === 'dark' ? 'outline-light' : 'outline-secondary'}
               disabled={page >= totalPages}
               onClick={() => setPage((prev) => prev + 1)}
-              aria-label={t('admin.nextPage')}
+              aria-label={t('admin.nextPage', { defaultValue: 'Next Page' })}
               id="next-page-button"
             >
-              {t('admin.nextPage')}
+              {t('admin.nextPage', { defaultValue: 'Next Page' })}
             </Button>
           </div>
         </div>
