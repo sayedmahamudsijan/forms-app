@@ -101,6 +101,18 @@ app.use((req, res, next) => {
   next();
 });
 
+// Root route
+app.get('/', (req, res) => {
+  console.log(`✅ Root route accessed`, { timestamp: new Date().toISOString() });
+  res.json({ success: true, message: 'Forms App API is running. Use /api/health for status or API routes for functionality.' });
+});
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  console.log(`✅ Health check accessed`, { timestamp: new Date().toISOString() });
+  res.json({ success: true, message: 'Server is running', timestamp: new Date().toISOString() });
+});
+
 // Initialize WebSocket
 try {
   initSocket(server);
@@ -111,12 +123,6 @@ try {
     timestamp: new Date().toISOString(),
   });
 }
-
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  console.log(`✅ Health check accessed`, { timestamp: new Date().toISOString() });
-  res.json({ success: true, message: 'Server is running', timestamp: new Date().toISOString() });
-});
 
 // API Routes
 app.use('/api/auth', require('./routes/authRoutes'));
