@@ -7,7 +7,7 @@ import { AuthContext } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext';
 import FormFill from './FormFill';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const API_BASE = process.env.REACT_APP_API_URL || 'https://forms-app-9zln.onrender.com';
 
 function FormPage() {
   const { t } = useTranslation();

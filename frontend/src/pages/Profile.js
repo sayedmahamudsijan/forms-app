@@ -9,7 +9,7 @@ import TemplateList from '../components/TemplateList';
 import AdminPanel from '../components/AdminPanel';
 import { Nav, Alert, Button, ListGroup, Spinner, Form, InputGroup } from 'react-bootstrap';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const API_BASE = process.env.REACT_APP_API_URL || 'https://forms-app-9zln.onrender.com';
 
 function Profile() {
   const { t } = useTranslation();

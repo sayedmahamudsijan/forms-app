@@ -8,7 +8,7 @@ import io from 'socket.io-client';
 import { AuthContext } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const API_BASE = process.env.REACT_APP_API_URL || 'https://forms-app-9zln.onrender.com';
 
 function CommentSection({ templateId, canComment, onRequireLogin }) {
   const { t } = useTranslation();

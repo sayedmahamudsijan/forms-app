@@ -10,7 +10,7 @@ import FormFill from '../components/FormFill';
 import CommentSection from '../components/CommentSection';
 import { Nav, Alert, Button, Spinner, ListGroup, Container } from 'react-bootstrap';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const API_BASE = process.env.REACT_APP_API_URL || 'https://forms-app-9zln.onrender.com';
 
 function TemplatePage() {
   const { t } = useTranslation();

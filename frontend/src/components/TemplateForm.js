@@ -9,7 +9,7 @@ import Select from 'react-select';
 import axios from 'axios';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const API_BASE = process.env.REACT_APP_API_URL || 'https://forms-app-9zln.onrender.com';
 
 function TemplateForm({ template, onSubmit }) {
   const { t } = useTranslation();
