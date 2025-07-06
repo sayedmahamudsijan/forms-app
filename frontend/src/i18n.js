@@ -180,6 +180,8 @@ const resources = {
         titlePlaceholder: 'Enter template title',
         descriptionLabel: 'Description',
         descriptionPlaceholder: 'Enter template description',
+        questionDescription: 'Description', // Added for template description label
+        questionDescriptionPlaceholder: 'Enter template description', // Added for template description placeholder
         isPublic: 'Make this template public',
         topicLabel: 'Topic',
         selectTopic: 'Select a topic',
@@ -371,7 +373,6 @@ const resources = {
         deleteSuccess: 'User deleted successfully',
         deleteError: 'Failed to delete user',
         confirmSelfAdminRemoval: 'Are you sure you want to remove your own admin status?',
-        // Migrated from adminPanel
         users_heading: 'Users',
         user_id: 'ID',
         user_name: 'Name',
@@ -652,6 +653,8 @@ const resources = {
         titlePlaceholder: 'Ingresa el título de la plantilla',
         descriptionLabel: 'Descripción',
         descriptionPlaceholder: 'Ingresa la descripción de la plantilla',
+        questionDescription: 'Descripción', // Added for template description label
+        questionDescriptionPlaceholder: 'Ingresa la descripción de la plantilla', // Added for template description placeholder
         isPublic: 'Hacer esta plantilla pública',
         topicLabel: 'Tema',
         selectTopic: 'Selecciona un tema',
@@ -843,7 +846,6 @@ const resources = {
         deleteSuccess: 'Usuario eliminado correctamente',
         deleteError: 'Error al eliminar usuario',
         confirmSelfAdminRemoval: '¿Estás seguro de que quieres eliminar tu propio estado de administrador?',
-        // Migrated from adminPanel
         users_heading: 'Usuarios',
         user_id: 'ID',
         user_name: 'Nombre',
@@ -877,7 +879,7 @@ const resources = {
         attachment: 'Adjunto de Pregunta',
         attachmentSelected: 'Seleccionado: {name}',
         invalidAttachment: 'Tipo de adjunto no válido. Usa JPEG, PNG, PDF, MP4, DOC o DOCX.',
-        attachmentTooLarge: 'El tamaño del adjunto debe ser menor a 10MB.',
+        attachmentTooLarge: 'El tamaño del adjunto debe be menor a 10MB.',
         viewAttachment: 'Ver Adjunto',
         state: 'Estado de la Pregunta',
         required: 'Obligatorio',
@@ -970,6 +972,7 @@ function initializeI18n() {
           language: i18n.language,
           availableNamespaces: Object.keys(resources.en),
           templateListKeys: Object.keys(resources.en.translation.templateList),
+          createTemplateKeys: Object.keys(resources.en.translation.createTemplate), // Added for debugging
         });
         resolve();
       })
