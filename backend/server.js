@@ -10,7 +10,18 @@ const fs = require('fs');
 const path = require('path');
 
 // Load environment variables
-dotenv.config({ debug: true });
+dotenv.config({ debug: process.env.NODE_ENV !== 'production' });
+
+// Validate critical environment variables
+const requiredEnvVars = ['DATABASE_URL', 'CORS_ORIGINS'];
+requiredEnvVars.forEach((varName) => {
+  if (!process.env[varName]) {
+    console.error(`❌ Missing environment variable: ${varName}`, {
+      timestamp: new Date().toISOString(),
+    });
+    process.exit(1);
+  }
+});
 
 const app = express();
 const server = http.createServer(app);
@@ -61,9 +72,7 @@ app.use(helmet());
 app.use(
   cors({
     origin: (origin, callback) => {
-      const allowedOrigins = process.env.CORS_ORIGINS
-        ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim()).filter((o) => o)
-        : ['http://localhost:3000', 'https://forms-app-9zln.onrender.com'];
+      const allowedOrigins = process.env.CORS_ORIGINS.split(',').map((o) => o.trim()).filter((o) => o);
       console.log(`✅ CORS Request Origin: ${origin || 'none'}`, {
         allowedOrigins,
         timestamp: new Date().toISOString(),
@@ -71,6 +80,7 @@ app.use(
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
+        console.error(`❌ CORS rejected: ${origin}`, { timestamp: new Date().toISOString() });
         callback(new Error('Not allowed by CORS'));
       }
     },
@@ -82,14 +92,16 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use((req, res, next) => {
-  console.log(`✅ Request: ${req.method} ${req.originalUrl}`, {
-    userId: req.user?.id || 'unauthenticated',
-    timestamp: new Date().toISOString(),
-  });
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`✅ Request: ${req.method} ${req.originalUrl}`, {
+      userId: req.user?.id || 'unauthenticated',
+      timestamp: new Date().toISOString(),
+    });
+  }
   next();
 });
 
-// Initialize WebSocket with error handling
+// Initialize WebSocket
 try {
   initSocket(server);
   console.log(`✅ WebSocket initialized`, { timestamp: new Date().toISOString() });
@@ -149,10 +161,9 @@ const PORT = process.env.PORT || 5000;
 const startServer = async () => {
   try {
     console.log('✅ Starting server', { timestamp: new Date().toISOString() });
-    // Test database connection
     await db.sequelize.authenticate();
     console.log('✅ Database connection successful', { timestamp: new Date().toISOString() });
-    // Optional: Sync database (use with caution in production)
+    // Ensure schema is up-to-date (uncomment in development if needed)
     // await db.sequelize.sync({ force: false });
     server.listen(PORT, () => {
       console.log(`✅ Server running on http://localhost:${PORT}`, { timestamp: new Date().toISOString() });
@@ -164,7 +175,7 @@ const startServer = async () => {
       timestamp: new Date().toISOString(),
     });
     console.warn('⚠️ Retrying database connection in 5 seconds...', { timestamp: new Date().toISOString() });
-    setTimeout(startServer, 5000); // Retry after 5 seconds
+    setTimeout(startServer, 5000);
   }
 };
 
