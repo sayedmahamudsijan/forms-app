@@ -772,7 +772,13 @@ const getTemplates = async (req, res) => {
     const baseInclude = [
       { model: User, as: 'User', attributes: ['id', 'name', 'email'], required: false },
       { model: Tag, as: 'Tags', attributes: ['id', 'name'], through: { attributes: [] }, required: false },
-      { model: Topic, as: 'Topic', attributes: ['id', 'name'], required: false }
+      { model: Topic, as: 'Topic', attributes: ['id', 'name'], required: false },
+      { 
+        model: TemplateQuestion, 
+        as: 'TemplateQuestions', 
+        attributes: ['id', 'type', 'title', 'description', 'is_visible_in_results', 'order', 'is_required', 'options', 'attachment_url', 'min', 'max', 'min_label', 'max_label'],
+        required: false 
+      },
     ];
 
     let templates;
@@ -802,16 +808,27 @@ const getTemplates = async (req, res) => {
       });
     }
 
+    // Log template data to verify Topic.name
     console.log(`✅ Fetched ${templates.length} templates for User ID ${userId || 'unauthenticated'}`, {
       query: req.query,
       timestamp: new Date().toISOString(),
+      templates: templates.map(t => ({
+        id: t.id,
+        title: t.title,
+        user_id: t.user_id,
+        topic_id: t.topic_id,
+        topic_name: t.Topic ? t.Topic.name : 'null',
+        template_questions_count: t.TemplateQuestions ? t.TemplateQuestions.length : 0,
+      })),
     });
+
     return res.json({ success: true, templates });
   } catch (error) {
     console.error('❌ Error fetching templates:', {
       user_id: req.user?.id,
       error: error.message,
       stack: error.stack,
+      query: req.query,
       timestamp: new Date().toISOString(),
     });
     return res.status(500).json({ success: false, message: 'Server error', error: error.message });
@@ -851,12 +868,27 @@ const searchTemplates = async (req, res) => {
         { model: User, as: 'User', attributes: ['id', 'name'], required: false },
         { model: Topic, as: 'Topic', attributes: ['id', 'name'], required: false },
         { model: TemplatePermission, as: 'TemplatePermissions', required: false },
+        { 
+          model: TemplateQuestion, 
+          as: 'TemplateQuestions', 
+          attributes: ['id', 'type', 'title', 'description', 'is_visible_in_results', 'order', 'is_required', 'options', 'attachment_url', 'min', 'max', 'min_label', 'max_label'],
+          required: false 
+        },
       ],
     });
 
     console.log(`✅ Searched ${templates.length} templates for User ID ${user_id}, Query: ${query}`, {
       timestamp: new Date().toISOString(),
+      templates: templates.map(t => ({
+        id: t.id,
+        title: t.title,
+        user_id: t.user_id,
+        topic_id: t.topic_id,
+        topic_name: t.Topic ? t.Topic.name : 'null',
+        template_questions_count: t.TemplateQuestions ? t.TemplateQuestions.length : 0,
+      })),
     });
+
     return res.json({ success: true, templates });
   } catch (error) {
     console.error('❌ Error searching templates:', {
@@ -877,34 +909,60 @@ const deleteTemplate = [
     if (!errors.isEmpty()) {
       console.log(`❌ DeleteTemplate validation failed: ${JSON.stringify(errors.array())}`, {
         timestamp: new Date().toISOString(),
+        params: req.params,
       });
       return res.status(400).json({ success: false, errors: errors.array() });
     }
 
+    const transaction = await Template.sequelize.transaction();
     try {
       const { id } = req.params;
       const user_id = parseInt(req.user.id, 10);
 
-      const template = await Template.findByPk(id);
-      if (!template || (template.user_id !== user_id && !req.user.is_admin)) {
-        console.log(`❌ DeleteTemplate failed: Unauthorized for template ${id}, user ${user_id}`, {
+      const template = await Template.findByPk(id, {
+        attributes: ['id', 'user_id', 'title', 'topic_id'],
+        include: [
+          { model: Topic, as: 'Topic', attributes: ['id', 'name'], required: false },
+        ],
+        transaction,
+      });
+
+      if (!template) {
+        console.log(`❌ DeleteTemplate failed: Template ${id} not found for user ${user_id}`, {
           timestamp: new Date().toISOString(),
           template_id: id,
         });
+        await transaction.rollback();
+        return res.status(404).json({ success: false, message: 'Template not found' });
+      }
+
+      if (template.user_id !== user_id && !req.user.is_admin) {
+        console.log(`❌ DeleteTemplate failed: Unauthorized for template ${id}, user ${user_id}`, {
+          timestamp: new Date().toISOString(),
+          template_id: id,
+          template_user_id: template.user_id,
+          user_is_admin: req.user.is_admin,
+        });
+        await transaction.rollback();
         return res.status(403).json({ success: false, message: 'Unauthorized' });
       }
 
-      await Template.destroy({ where: { id } });
-      console.log(`✅ Template deleted: ID ${id}, User ID ${user_id}`, {
+      await Template.destroy({ where: { id }, transaction });
+      await transaction.commit();
+      console.log(`✅ Template deleted: ID ${id}, Title: ${template.title}, User ID ${user_id}`, {
         timestamp: new Date().toISOString(),
+        topic_id: template.topic_id,
+        topic_name: template.Topic ? template.Topic.name : 'null',
       });
       return res.json({ success: true, message: 'Template deleted successfully' });
     } catch (error) {
+      await transaction.rollback();
       console.error('❌ Error deleting template:', {
         template_id: req.params.id,
         user_id: req.user?.id,
         error: error.message,
         stack: error.stack,
+        sql_error: error.sql || 'No SQL captured',
         timestamp: new Date().toISOString(),
       });
       return res.status(500).json({ success: false, message: 'Server error', error: error.message });
@@ -962,6 +1020,9 @@ const getTemplate = [
 
       console.log(`✅ Fetched template: ID ${id}, User ID ${user_id || 'unauthenticated'}`, {
         timestamp: new Date().toISOString(),
+        topic_id: template.topic_id,
+        topic_name: template.Topic ? template.Topic.name : 'null',
+        template_questions_count: template.TemplateQuestions ? template.TemplateQuestions.length : 0,
       });
       return res.json({
         success: true,
