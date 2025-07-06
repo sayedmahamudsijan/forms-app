@@ -15,7 +15,7 @@ const { uploadFile } = require('../services/cloudinaryService');
 // Middleware to parse JSON strings in specific fields
 const parseJsonFields = (req, res, next) => {
   const fields = ['questions', 'tags', 'permissions'];
-  fields.forEach(field => {
+  fields.forEach((field) => {
     if (typeof req.body[field] === 'string') {
       try {
         req.body[field] = JSON.parse(req.body[field]);
@@ -42,20 +42,25 @@ const validateCreateTemplate = [
   body('questions')
     .isArray({ min: 1 })
     .withMessage('Questions must be a non-empty array')
-    .custom(questions =>
-      questions.every(q => q.type && q.title && ['string', 'text', 'integer', 'checkbox', 'select', 'multiple_choice', 'dropdown', 'linear_scale', 'date', 'time'].includes(q.type))
+    .custom((questions) =>
+      questions.every(
+        (q) =>
+          q.type &&
+          q.title &&
+          ['string', 'text', 'integer', 'checkbox', 'select', 'multiple_choice', 'dropdown', 'linear_scale', 'date', 'time'].includes(q.type)
+      )
     )
-    .withMessage('Each question must have a valid type (string, text, integer, checkbox, select, multiple_choice, dropdown, linear_scale, date, time) and title')
-    .custom(questions =>
-      questions.every(q =>
-        ['select', 'multiple_choice', 'dropdown'].includes(q.type)
-          ? Array.isArray(q.options) && q.options.length >= 2
-          : true
+    .withMessage(
+      'Each question must have a valid type (string, text, integer, checkbox, select, multiple_choice, dropdown, linear_scale, date, time) and title'
+    )
+    .custom((questions) =>
+      questions.every((q) =>
+        ['select', 'multiple_choice', 'dropdown'].includes(q.type) ? Array.isArray(q.options) && q.options.length >= 2 : true
       )
     )
     .withMessage('Select, multiple_choice, or dropdown questions must have at least two options')
-    .custom(questions =>
-      questions.every(q =>
+    .custom((questions) =>
+      questions.every((q) =>
         q.type === 'linear_scale'
           ? q.min != null && q.max != null && Number.isInteger(q.min) && Number.isInteger(q.max) && q.min < q.max
           : true
@@ -63,8 +68,9 @@ const validateCreateTemplate = [
     )
     .withMessage('Linear scale questions must have valid integer min and max values, with min less than max'),
   body('tags')
-    .isArray().withMessage('Tags must be an array')
-    .custom(tags => tags.every(tag => typeof tag === 'string' && tag.trim().length > 0))
+    .isArray()
+    .withMessage('Tags must be an array')
+    .custom((tags) => tags.every((tag) => typeof tag === 'string' && tag.trim().length > 0))
     .withMessage('Tags must be an array of non-empty strings'),
   body('permissions').isArray().withMessage('Permissions must be an array'),
 ];
@@ -78,20 +84,25 @@ const validateUpdateTemplate = [
   body('questions')
     .isArray({ min: 1 })
     .withMessage('Questions must be a non-empty array')
-    .custom(questions =>
-      questions.every(q => q.type && q.title && ['string', 'text', 'integer', 'checkbox', 'select', 'multiple_choice', 'dropdown', 'linear_scale', 'date', 'time'].includes(q.type))
+    .custom((questions) =>
+      questions.every(
+        (q) =>
+          q.type &&
+          q.title &&
+          ['string', 'text', 'integer', 'checkbox', 'select', 'multiple_choice', 'dropdown', 'linear_scale', 'date', 'time'].includes(q.type)
+      )
     )
-    .withMessage('Each question must have a valid type (string, text, integer, checkbox, select, multiple_choice, dropdown, linear_scale, date, time) and title')
-    .custom(questions =>
-      questions.every(q =>
-        ['select', 'multiple_choice', 'dropdown'].includes(q.type)
-          ? Array.isArray(q.options) && q.options.length >= 2
-          : true
+    .withMessage(
+      'Each question must have a valid type (string, text, integer, checkbox, select, multiple_choice, dropdown, linear_scale, date, time) and title'
+    )
+    .custom((questions) =>
+      questions.every((q) =>
+        ['select', 'multiple_choice', 'dropdown'].includes(q.type) ? Array.isArray(q.options) && q.options.length >= 2 : true
       )
     )
     .withMessage('Select, multiple_choice, or dropdown questions must have at least two options')
-    .custom(questions =>
-      questions.every(q =>
+    .custom((questions) =>
+      questions.every((q) =>
         q.type === 'linear_scale'
           ? q.min != null && q.max != null && Number.isInteger(q.min) && Number.isInteger(q.max) && q.min < q.max
           : true
@@ -99,15 +110,14 @@ const validateUpdateTemplate = [
     )
     .withMessage('Linear scale questions must have valid integer min and max values, with min less than max'),
   body('tags')
-    .isArray().withMessage('Tags must be an array')
-    .custom(tags => tags.every(tag => typeof tag === 'string' && tag.trim().length > 0))
+    .isArray()
+    .withMessage('Tags must be an array')
+    .custom((tags) => tags.every((tag) => typeof tag === 'string' && tag.trim().length > 0))
     .withMessage('Tags must be an array of non-empty strings'),
   body('permissions').isArray().withMessage('Permissions must be an array'),
 ];
 
-const validateGetTemplate = [
-  param('id').isInt().withMessage('Invalid template ID'),
-];
+const validateGetTemplate = [param('id').isInt().withMessage('Invalid template ID')];
 
 const createTemplate = [
   parseJsonFields,
@@ -160,7 +170,7 @@ const createTemplate = [
           headers: req.headers.authorization ? 'Bearer token present' : 'No Bearer token',
           database_query: 'SELECT id, email, name FROM "Users" WHERE id = ' + user_id,
           users_table_count: await User.count({ transaction }),
-          existing_user_ids: (await User.findAll({ attributes: ['id'], transaction })).map(u => u.id),
+          existing_user_ids: (await User.findAll({ attributes: ['id'], transaction })).map((u) => u.id),
         });
         await transaction.rollback();
         return res.status(400).json({ success: false, message: `User ID ${user_id} does not exist` });
@@ -177,7 +187,10 @@ const createTemplate = [
           topic_id,
           raw_topic_id: topic_id,
           topics_table_count: await Topic.count({ transaction }),
-          existing_topic_ids: (await Topic.findAll({ attributes: ['id'], transaction })).map(t => t.id),
+          existing_topic_ids: (await Topic.findAll({ attributes: ['id', 'name'], transaction })).map((t) => ({
+            id: t.id,
+            name: t.name,
+          })),
         });
         await transaction.rollback();
         return res.status(400).json({ success: false, message: 'Topic ID must be a valid positive integer' });
@@ -192,7 +205,10 @@ const createTemplate = [
           topic_id: parsed_topic_id,
           raw_topic_id: topic_id,
           topics_table_count: await Topic.count({ transaction }),
-          existing_topic_ids: (await Topic.findAll({ attributes: ['id'], transaction })).map(t => t.id),
+          existing_topic_ids: (await Topic.findAll({ attributes: ['id', 'name'], transaction })).map((t) => ({
+            id: t.id,
+            name: t.name,
+          })),
         });
         await transaction.rollback();
         return res.status(400).json({ success: false, message: `Topic ID ${parsed_topic_id} does not exist` });
@@ -241,8 +257,12 @@ const createTemplate = [
       const questionAttachments = req.files?.questionAttachments || [];
       const attachmentUrls = [];
       const allowedAttachmentTypes = [
-        'image/jpeg', 'image/png', 'application/pdf', 'video/mp4', 'application/msword',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        'image/jpeg',
+        'image/png',
+        'application/pdf',
+        'video/mp4',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       ];
 
       for (let i = 0; i < questionAttachments.length; i++) {
@@ -253,7 +273,10 @@ const createTemplate = [
             mimetype: attachment.mimetype,
           });
           await transaction.rollback();
-          return res.status(400).json({ success: false, message: 'Invalid attachment type. Use JPEG, PNG, PDF, MP4, DOC, or DOCX.' });
+          return res.status(400).json({
+            success: false,
+            message: 'Invalid attachment type. Use JPEG, PNG, PDF, MP4, DOC, or DOCX.',
+          });
         }
         if (attachment.size > 10 * 1024 * 1024) {
           console.log(`❌ CreateTemplate failed: Attachment size too large for question ${i}, user ${user_id}`, {
@@ -281,25 +304,29 @@ const createTemplate = [
         template_data: { user_id, title, description, topic_id: parsed_topic_id, is_public: parsedIsPublic },
       });
 
-      const template = await Template.create({
-        user_id,
-        title,
-        description,
-        image_url,
-        topic_id: parsed_topic_id,
-        is_public: parsedIsPublic,
-        search_vector: Sequelize.fn('to_tsvector', 'english', `${title} ${description || ''}`),
-      }, {
-        transaction,
-        logging: (sql) => {
-          console.log(`ℹ️ Template.create SQL: ${sql}`, {
-            timestamp: new Date().toISOString(),
-            user_id,
-            topic_id: parsed_topic_id,
-            is_public: parsedIsPublic,
-          });
+      const template = await Template.create(
+        {
+          user_id,
+          title,
+          description,
+          image_url,
+          topic_id: parsed_topic_id,
+          is_public: parsedIsPublic,
+          search_vector: Sequelize.fn('to_tsvector', 'english', `${title} ${description || ''}`),
+        },
+        {
+          transaction,
+          logging: (sql, queryObject) => {
+            console.log(`ℹ️ Template.create SQL: ${sql}`, {
+              timestamp: new Date().toISOString(),
+              user_id,
+              topic_id: parsed_topic_id,
+              is_public: parsedIsPublic,
+              bindings: queryObject.bind,
+            });
+          },
         }
-      });
+      );
 
       // Verify template creation
       if (!template || !template.id) {
@@ -336,14 +363,15 @@ const createTemplate = [
           min_label: q.type === 'linear_scale' ? q.minLabel : null,
           max_label: q.type === 'linear_scale' ? q.maxLabel : null,
         })),
-        { 
+        {
           transaction,
-          logging: (sql) => {
+          logging: (sql, queryObject) => {
             console.log(`ℹ️ TemplateQuestion.bulkCreate SQL: ${sql}`, {
               timestamp: new Date().toISOString(),
               template_id: template.id,
+              bindings: queryObject.bind,
             });
-          }
+          },
         }
       );
 
@@ -359,43 +387,49 @@ const createTemplate = [
           where: { name: tagNames },
           attributes: ['id', 'name'],
           transaction,
-          logging: (sql) => {
+          logging: (sql, queryObject) => {
             console.log(`ℹ️ Tag.findAll SQL for tags: ${sql}`, {
               timestamp: new Date().toISOString(),
+              bindings: queryObject.bind,
             });
-          }
+          },
         });
 
-        const existingTagNames = tagsFromDb.map(t => t.name);
-        const missingTagNames = tagNames.filter(n => !existingTagNames.includes(n));
+        const existingTagNames = tagsFromDb.map((t) => t.name);
+        const missingTagNames = tagNames.filter((n) => !existingTagNames.includes(n));
         const tagRecords = [...tagsFromDb];
 
         for (const name of missingTagNames) {
-          const newTag = await Tag.create({ name }, {
-            transaction,
-            logging: (sql) => {
-              console.log(`ℹ️ Tag.create SQL for '${name}': ${sql}`, {
-                timestamp: new Date().toISOString(),
-              });
+          const newTag = await Tag.create(
+            { name },
+            {
+              transaction,
+              logging: (sql, queryObject) => {
+                console.log(`ℹ️ Tag.create SQL for '${name}': ${sql}`, {
+                  timestamp: new Date().toISOString(),
+                  bindings: queryObject.bind,
+                });
+              },
             }
-          });
+          );
           tagRecords.push(newTag);
         }
 
         console.log(`✅ Resolved ${tagRecords.length} tags for template ${template.id}:`, {
-          tag_ids: tagRecords.map(t => t.id),
-          tag_names: tagRecords.map(t => t.name),
+          tag_ids: tagRecords.map((t) => t.id),
+          tag_names: tagRecords.map((t) => t.name),
           timestamp: new Date().toISOString(),
         });
 
         await template.setTags(tagRecords, {
           transaction,
-          logging: (sql) => {
+          logging: (sql, queryObject) => {
             console.log(`ℹ️ template.setTags SQL: ${sql}`, {
               timestamp: new Date().toISOString(),
               template_id: template.id,
+              bindings: queryObject.bind,
             });
-          }
+          },
         });
       }
 
@@ -409,7 +443,7 @@ const createTemplate = [
         if (permissionUsers.length !== permissions.length) {
           console.log(`❌ CreateTemplate failed: Invalid user IDs in permissions for user ${user_id}`, {
             timestamp: new Date().toISOString(),
-            invalid_ids: permissions.filter(id => !permissionUsers.some(u => u.id === id)),
+            invalid_ids: permissions.filter((id) => !permissionUsers.some((u) => u.id === id)),
             permissions,
           });
           await transaction.rollback();
@@ -417,15 +451,16 @@ const createTemplate = [
         }
 
         await TemplatePermission.bulkCreate(
-          permissions.map(user_id => ({ template_id: template.id, user_id })),
-          { 
+          permissions.map((user_id) => ({ template_id: template.id, user_id })),
+          {
             transaction,
-            logging: (sql) => {
+            logging: (sql, queryObject) => {
               console.log(`ℹ️ TemplatePermission.bulkCreate SQL: ${sql}`, {
                 timestamp: new Date().toISOString(),
                 template_id: template.id,
+                bindings: queryObject.bind,
               });
-            }
+            },
           }
         );
       }
@@ -436,20 +471,35 @@ const createTemplate = [
           { model: User, as: 'User', attributes: ['id', 'name'], required: false },
           { model: Tag, as: 'Tags', attributes: ['id', 'name'], through: { attributes: [] }, required: false },
           { model: TemplatePermission, as: 'TemplatePermissions', required: false },
-          { 
-            model: TemplateQuestion, 
-            as: 'TemplateQuestions', 
-            attributes: ['id', 'type', 'title', 'description', 'is_visible_in_results', 'order', 'is_required', 'options', 'attachment_url', 'min', 'max', 'min_label', 'max_label'] 
+          {
+            model: TemplateQuestion,
+            as: 'TemplateQuestions',
+            attributes: [
+              'id',
+              'type',
+              'title',
+              'description',
+              'is_visible_in_results',
+              'order',
+              'is_required',
+              'options',
+              'attachment_url',
+              'min',
+              'max',
+              'min_label',
+              'max_label',
+            ],
           },
           { model: Topic, as: 'Topic', attributes: ['id', 'name'], required: false },
         ],
-        transaction
+        transaction,
       });
 
       await transaction.commit();
       console.log(`✅ Template created: ID ${template.id}, Title: ${title}, User ID ${user_id}`, {
         timestamp: new Date().toISOString(),
         topic_id: parsed_topic_id,
+        topic_name: topic.name,
         is_public: parsedIsPublic,
         permissions,
         tags,
@@ -466,8 +516,11 @@ const createTemplate = [
         headers: req.headers.authorization ? 'Bearer token present' : 'No Bearer token',
         users_table_count: await User.count().catch(() => 'Count failed'),
         topics_table_count: await Topic.count().catch(() => 'Count failed'),
-        existing_user_ids: (await User.findAll({ attributes: ['id'] }).catch(() => [])).map(u => u.id),
-        existing_topic_ids: (await Topic.findAll({ attributes: ['id'] }).catch(() => [])).map(t => t.id),
+        existing_user_ids: (await User.findAll({ attributes: ['id'] }).catch(() => [])).map((u) => u.id),
+        existing_topic_ids: (await Topic.findAll({ attributes: ['id', 'name'] }).catch(() => [])).map((t) => ({
+          id: t.id,
+          name: t.name,
+        })),
         sql_error: error.sql || 'No SQL captured',
         timestamp: new Date().toISOString(),
       });
@@ -476,7 +529,6 @@ const createTemplate = [
   },
 ];
 
-// Other functions remain unchanged
 const updateTemplate = [
   parseJsonFields,
   ...validateUpdateTemplate,
@@ -501,6 +553,8 @@ const updateTemplate = [
         console.log(`❌ UpdateTemplate failed: User ID ${user_id} not found`, {
           timestamp: new Date().toISOString(),
           user_id,
+          users_table_count: await User.count({ transaction }),
+          existing_user_ids: (await User.findAll({ attributes: ['id'], transaction })).map((u) => u.id),
         });
         await transaction.rollback();
         return res.status(400).json({ success: false, message: 'Invalid user ID' });
@@ -511,19 +565,29 @@ const updateTemplate = [
         console.log(`❌ UpdateTemplate failed: Unauthorized for template ${id}, user ${user_id}`, {
           timestamp: new Date().toISOString(),
           template_id: id,
+          template_user_id: template?.user_id,
+          user_is_admin: req.user.is_admin,
         });
         await transaction.rollback();
         return res.status(403).json({ success: false, message: 'Unauthorized' });
       }
 
-      const topic = await Topic.findByPk(parseInt(topic_id, 10), { transaction });
+      const topic = await Topic.findByPk(parseInt(topic_id, 10), {
+        attributes: ['id', 'name'],
+        transaction,
+      });
       if (!topic) {
         console.log(`❌ UpdateTemplate failed: Topic ID ${topic_id} not found for user ${user_id}`, {
           timestamp: new Date().toISOString(),
           topic_id,
+          topics_table_count: await Topic.count({ transaction }),
+          existing_topic_ids: (await Topic.findAll({ attributes: ['id', 'name'], transaction })).map((t) => ({
+            id: t.id,
+            name: t.name,
+          })),
         });
         await transaction.rollback();
-        return res.status(400).json({ success: false, message: 'Invalid topic ID' });
+        return res.status(400).json({ success: false, message: `Topic ID ${topic_id} does not exist` });
       }
 
       const image = req.files?.image?.[0];
@@ -563,8 +627,12 @@ const updateTemplate = [
       const questionAttachments = req.files?.questionAttachments || [];
       const attachmentUrls = [];
       const allowedAttachmentTypes = [
-        'image/jpeg', 'image/png', 'application/pdf', 'video/mp4', 'application/msword',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        'image/jpeg',
+        'image/png',
+        'application/pdf',
+        'video/mp4',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       ];
 
       for (let i = 0; i < questionAttachments.length; i++) {
@@ -575,7 +643,10 @@ const updateTemplate = [
             mimetype: attachment.mimetype,
           });
           await transaction.rollback();
-          return res.status(400).json({ success: false, message: 'Invalid attachment type. Use JPEG, PNG, PDF, MP4, DOC, or DOCX.' });
+          return res.status(400).json({
+            success: false,
+            message: 'Invalid attachment type. Use JPEG, PNG, PDF, MP4, DOC, or DOCX.',
+          });
         }
         if (attachment.size > 10 * 1024 * 1024) {
           console.log(`❌ UpdateTemplate failed: Attachment size too large for question ${i}, user ${user_id}`, {
@@ -626,7 +697,16 @@ const updateTemplate = [
           min_label: q.type === 'linear_scale' ? q.minLabel : null,
           max_label: q.type === 'linear_scale' ? q.maxLabel : null,
         })),
-        { transaction }
+        {
+          transaction,
+          logging: (sql, queryObject) => {
+            console.log(`ℹ️ TemplateQuestion.bulkCreate SQL: ${sql}`, {
+              timestamp: new Date().toISOString(),
+              template_id: id,
+              bindings: queryObject.bind,
+            });
+          },
+        }
       );
 
       // Resolve tag names to tag IDs
@@ -641,43 +721,49 @@ const updateTemplate = [
           where: { name: tagNames },
           attributes: ['id', 'name'],
           transaction,
-          logging: (sql) => {
+          logging: (sql, queryObject) => {
             console.log(`ℹ️ Tag.findAll SQL for tags: ${sql}`, {
               timestamp: new Date().toISOString(),
+              bindings: queryObject.bind,
             });
-          }
+          },
         });
 
-        const existingTagNames = tagsFromDb.map(t => t.name);
-        const missingTagNames = tagNames.filter(n => !existingTagNames.includes(n));
+        const existingTagNames = tagsFromDb.map((t) => t.name);
+        const missingTagNames = tagNames.filter((n) => !existingTagNames.includes(n));
         const tagRecords = [...tagsFromDb];
 
         for (const name of missingTagNames) {
-          const newTag = await Tag.create({ name }, {
-            transaction,
-            logging: (sql) => {
-              console.log(`ℹ️ Tag.create SQL for '${name}': ${sql}`, {
-                timestamp: new Date().toISOString(),
-              });
+          const newTag = await Tag.create(
+            { name },
+            {
+              transaction,
+              logging: (sql, queryObject) => {
+                console.log(`ℹ️ Tag.create SQL for '${name}': ${sql}`, {
+                  timestamp: new Date().toISOString(),
+                  bindings: queryObject.bind,
+                });
+              },
             }
-          });
+          );
           tagRecords.push(newTag);
         }
 
         console.log(`✅ Resolved ${tagRecords.length} tags for template ${id}:`, {
-          tag_ids: tagRecords.map(t => t.id),
-          tag_names: tagRecords.map(t => t.name),
+          tag_ids: tagRecords.map((t) => t.id),
+          tag_names: tagRecords.map((t) => t.name),
           timestamp: new Date().toISOString(),
         });
 
         await template.setTags(tagRecords, {
           transaction,
-          logging: (sql) => {
+          logging: (sql, queryObject) => {
             console.log(`ℹ️ template.setTags SQL: ${sql}`, {
               timestamp: new Date().toISOString(),
               template_id: id,
+              bindings: queryObject.bind,
             });
-          }
+          },
         });
       } else {
         // Clear existing tags if none provided
@@ -694,7 +780,7 @@ const updateTemplate = [
         if (permissionUsers.length !== permissions.length) {
           console.log(`❌ UpdateTemplate failed: Invalid user IDs in permissions for user ${user_id}`, {
             timestamp: new Date().toISOString(),
-            invalid_ids: permissions.filter(id => !permissionUsers.some(u => u.id === id)),
+            invalid_ids: permissions.filter((id) => !permissionUsers.some((u) => u.id === id)),
             permissions,
           });
           await transaction.rollback();
@@ -702,8 +788,17 @@ const updateTemplate = [
         }
 
         await TemplatePermission.bulkCreate(
-          permissions.map(user_id => ({ template_id: id, user_id })),
-          { transaction }
+          permissions.map((user_id) => ({ template_id: id, user_id })),
+          {
+            transaction,
+            logging: (sql, queryObject) => {
+              console.log(`ℹ️ TemplatePermission.bulkCreate SQL: ${sql}`, {
+                timestamp: new Date().toISOString(),
+                template_id: id,
+                bindings: queryObject.bind,
+              });
+            },
+          }
         );
       }
 
@@ -712,20 +807,35 @@ const updateTemplate = [
           { model: User, as: 'User', attributes: ['id', 'name'], required: false },
           { model: Tag, as: 'Tags', attributes: ['id', 'name'], through: { attributes: [] }, required: false },
           { model: TemplatePermission, as: 'TemplatePermissions', required: false },
-          { 
-            model: TemplateQuestion, 
-            as: 'TemplateQuestions', 
-            attributes: ['id', 'type', 'title', 'description', 'is_visible_in_results', 'order', 'is_required', 'options', 'attachment_url', 'min', 'max', 'min_label', 'max_label'] 
+          {
+            model: TemplateQuestion,
+            as: 'TemplateQuestions',
+            attributes: [
+              'id',
+              'type',
+              'title',
+              'description',
+              'is_visible_in_results',
+              'order',
+              'is_required',
+              'options',
+              'attachment_url',
+              'min',
+              'max',
+              'min_label',
+              'max_label',
+            ],
           },
           { model: Topic, as: 'Topic', attributes: ['id', 'name'], required: false },
         ],
-        transaction
+        transaction,
       });
 
       await transaction.commit();
       console.log(`✅ Template updated: ID ${id}, Title: ${title}, User ID ${user_id}`, {
         timestamp: new Date().toISOString(),
         topic_id,
+        topic_name: topic.name,
         is_public,
         permissions,
       });
@@ -740,6 +850,10 @@ const updateTemplate = [
         stack: error.stack,
         body: req.body,
         sql_error: error.sql || 'No SQL captured',
+        existing_topic_ids: (await Topic.findAll({ attributes: ['id', 'name'] }).catch(() => [])).map((t) => ({
+          id: t.id,
+          name: t.name,
+        })),
         timestamp: new Date().toISOString(),
       });
       return res.status(500).json({ success: false, message: 'Server error', error: error.message });
@@ -750,11 +864,10 @@ const updateTemplate = [
 const getTemplates = async (req, res) => {
   try {
     const userId = req.user?.id;
-    const { latest, top, user } = req.query;
+    const { latest, top, user, page = 1, limit = 10 } = req.query;
+    const offset = (parseInt(page, 10) - 1) * parseInt(limit, 10);
 
-    const where = user === 'true' && userId
-      ? { user_id: userId }
-      : { is_public: true };
+    const where = user === 'true' && userId ? { user_id: userId } : { is_public: true };
 
     const baseAttributes = {
       include: [
@@ -773,46 +886,59 @@ const getTemplates = async (req, res) => {
       { model: User, as: 'User', attributes: ['id', 'name', 'email'], required: false },
       { model: Tag, as: 'Tags', attributes: ['id', 'name'], through: { attributes: [] }, required: false },
       { model: Topic, as: 'Topic', attributes: ['id', 'name'], required: false },
-      { 
-        model: TemplateQuestion, 
-        as: 'TemplateQuestions', 
-        attributes: ['id', 'type', 'title', 'description', 'is_visible_in_results', 'order', 'is_required', 'options', 'attachment_url', 'min', 'max', 'min_label', 'max_label'],
-        required: false 
+      {
+        model: TemplateQuestion,
+        as: 'TemplateQuestions',
+        attributes: [
+          'id',
+          'type',
+          'title',
+          'description',
+          'is_visible_in_results',
+          'order',
+          'is_required',
+          'options',
+          'attachment_url',
+          'min',
+          'max',
+          'min_label',
+          'max_label',
+        ],
+        required: false,
       },
     ];
 
     let templates;
+    const options = {
+      where,
+      attributes: { include: baseAttributes.include },
+      include: baseInclude,
+      offset,
+      limit: parseInt(limit, 10),
+      subQuery: false,
+    };
+
     if (top) {
-      templates = await Template.findAll({
-        where,
-        attributes: { include: baseAttributes.include },
-        include: baseInclude,
-        order: [[Sequelize.literal('"formCount"'), 'DESC']],
-        limit: parseInt(top, 10) || 5,
-        subQuery: false,
-      });
+      options.order = [[Sequelize.literal('"formCount"'), 'DESC']];
     } else if (latest === 'true') {
-      templates = await Template.findAll({
-        where,
-        attributes: { include: baseAttributes.include },
-        include: baseInclude,
-        order: [['created_at', 'DESC']],
-        limit: 6,
-      });
+      options.order = [['created_at', 'DESC']];
+      options.limit = 6;
     } else {
-      templates = await Template.findAll({
-        where,
-        attributes: { include: baseAttributes.include },
-        include: baseInclude,
-        order: [['created_at', 'DESC']],
-      });
+      options.order = [['created_at', 'DESC']];
     }
+
+    templates = await Template.findAll(options);
+
+    const total = await Template.count({ where });
 
     // Log template data to verify Topic.name
     console.log(`✅ Fetched ${templates.length} templates for User ID ${userId || 'unauthenticated'}`, {
       query: req.query,
       timestamp: new Date().toISOString(),
-      templates: templates.map(t => ({
+      page,
+      limit,
+      total,
+      templates: templates.map((t) => ({
         id: t.id,
         title: t.title,
         user_id: t.user_id,
@@ -822,13 +948,14 @@ const getTemplates = async (req, res) => {
       })),
     });
 
-    return res.json({ success: true, templates });
+    return res.json({ success: true, templates, total, page: parseInt(page, 10), limit: parseInt(limit, 10) });
   } catch (error) {
     console.error('❌ Error fetching templates:', {
       user_id: req.user?.id,
       error: error.message,
       stack: error.stack,
       query: req.query,
+      sql_error: error.sql || 'No SQL captured',
       timestamp: new Date().toISOString(),
     });
     return res.status(500).json({ success: false, message: 'Server error', error: error.message });
@@ -838,7 +965,9 @@ const getTemplates = async (req, res) => {
 const searchTemplates = async (req, res) => {
   try {
     const user_id = req.user.id;
-    const { query } = req.query;
+    const { query, page = 1, limit = 10 } = req.query;
+    const offset = (parseInt(page, 10) - 1) * parseInt(limit, 10);
+
     if (!query) {
       console.log(`❌ SearchTemplates failed: No query provided for user ${user_id}`, {
         timestamp: new Date().toISOString(),
@@ -848,7 +977,7 @@ const searchTemplates = async (req, res) => {
 
     const sanitizedQuery = query
       .split(' ')
-      .map(q => q.trim())
+      .map((q) => q.trim())
       .filter(Boolean)
       .join(' & ');
 
@@ -868,18 +997,51 @@ const searchTemplates = async (req, res) => {
         { model: User, as: 'User', attributes: ['id', 'name'], required: false },
         { model: Topic, as: 'Topic', attributes: ['id', 'name'], required: false },
         { model: TemplatePermission, as: 'TemplatePermissions', required: false },
-        { 
-          model: TemplateQuestion, 
-          as: 'TemplateQuestions', 
-          attributes: ['id', 'type', 'title', 'description', 'is_visible_in_results', 'order', 'is_required', 'options', 'attachment_url', 'min', 'max', 'min_label', 'max_label'],
-          required: false 
+        {
+          model: TemplateQuestion,
+          as: 'TemplateQuestions',
+          attributes: [
+            'id',
+            'type',
+            'title',
+            'description',
+            'is_visible_in_results',
+            'order',
+            'is_required',
+            'options',
+            'attachment_url',
+            'min',
+            'max',
+            'min_label',
+            'max_label',
+          ],
+          required: false,
         },
       ],
+      offset,
+      limit: parseInt(limit, 10),
+    });
+
+    const total = await Template.count({
+      where: [
+        Sequelize.literal(`search_vector @@ to_tsquery('english', :search_query)`),
+        {
+          [Op.or]: [
+            { is_public: true },
+            { user_id },
+            { '$TemplatePermissions.user_id$': user_id },
+          ],
+        },
+      ],
+      replacements: { search_query: sanitizedQuery },
     });
 
     console.log(`✅ Searched ${templates.length} templates for User ID ${user_id}, Query: ${query}`, {
       timestamp: new Date().toISOString(),
-      templates: templates.map(t => ({
+      page,
+      limit,
+      total,
+      templates: templates.map((t) => ({
         id: t.id,
         title: t.title,
         user_id: t.user_id,
@@ -889,13 +1051,14 @@ const searchTemplates = async (req, res) => {
       })),
     });
 
-    return res.json({ success: true, templates });
+    return res.json({ success: true, templates, total, page: parseInt(page, 10), limit: parseInt(limit, 10) });
   } catch (error) {
     console.error('❌ Error searching templates:', {
       user_id: req.user.id,
       query: req.query.query,
       error: error.message,
       stack: error.stack,
+      sql_error: error.sql || 'No SQL captured',
       timestamp: new Date().toISOString(),
     });
     return res.status(500).json({ success: false, message: 'Server error', error: error.message });
@@ -921,9 +1084,7 @@ const deleteTemplate = [
 
       const template = await Template.findByPk(id, {
         attributes: ['id', 'user_id', 'title', 'topic_id'],
-        include: [
-          { model: Topic, as: 'Topic', attributes: ['id', 'name'], required: false },
-        ],
+        include: [{ model: Topic, as: 'Topic', attributes: ['id', 'name'], required: false }],
         transaction,
       });
 
@@ -931,6 +1092,7 @@ const deleteTemplate = [
         console.log(`❌ DeleteTemplate failed: Template ${id} not found for user ${user_id}`, {
           timestamp: new Date().toISOString(),
           template_id: id,
+          existing_template_ids: (await Template.findAll({ attributes: ['id'], transaction })).map((t) => t.id),
         });
         await transaction.rollback();
         return res.status(404).json({ success: false, message: 'Template not found' });
@@ -963,6 +1125,7 @@ const deleteTemplate = [
         error: error.message,
         stack: error.stack,
         sql_error: error.sql || 'No SQL captured',
+        existing_template_ids: (await Template.findAll({ attributes: ['id'] }).catch(() => [])).map((t) => t.id),
         timestamp: new Date().toISOString(),
       });
       return res.status(500).json({ success: false, message: 'Server error', error: error.message });
@@ -990,10 +1153,24 @@ const getTemplate = [
           { model: User, as: 'User', attributes: ['id', 'name'], required: false },
           { model: Tag, as: 'Tags', attributes: ['id', 'name'], through: { attributes: [] }, required: false },
           { model: TemplatePermission, as: 'TemplatePermissions', required: false },
-          { 
-            model: TemplateQuestion, 
-            as: 'TemplateQuestions', 
-            attributes: ['id', 'type', 'title', 'description', 'is_visible_in_results', 'order', 'is_required', 'options', 'attachment_url', 'min', 'max', 'min_label', 'max_label'] 
+          {
+            model: TemplateQuestion,
+            as: 'TemplateQuestions',
+            attributes: [
+              'id',
+              'type',
+              'title',
+              'description',
+              'is_visible_in_results',
+              'order',
+              'is_required',
+              'options',
+              'attachment_url',
+              'min',
+              'max',
+              'min_label',
+              'max_label',
+            ],
           },
           { model: Topic, as: 'Topic', attributes: ['id', 'name'], required: false },
         ],
@@ -1003,17 +1180,21 @@ const getTemplate = [
         console.log(`❌ GetTemplate failed: Template ${id} not found for user ${user_id || 'unauthenticated'}`, {
           timestamp: new Date().toISOString(),
           template_id: id,
+          existing_template_ids: (await Template.findAll({ attributes: ['id'] }).catch(() => [])).map((t) => t.id),
         });
         return res.status(404).json({ success: false, message: 'Template not found' });
       }
 
       if (
         !template.is_public &&
-        (!user_id || (template.user_id !== user_id && !req.user?.is_admin && !template.TemplatePermissions.some(p => p.user_id === user_id)))
+        (!user_id || (template.user_id !== user_id && !req.user?.is_admin && !template.TemplatePermissions.some((p) => p.user_id === user_id)))
       ) {
         console.log(`❌ GetTemplate failed: Access denied for template ${id}, user ${user_id || 'unauthenticated'}`, {
           timestamp: new Date().toISOString(),
           template_id: id,
+          template_user_id: template.user_id,
+          user_is_admin: req.user?.is_admin,
+          permissions: template.TemplatePermissions.map((p) => p.user_id),
         });
         return res.status(403).json({ success: false, message: 'Access denied' });
       }
@@ -1034,6 +1215,7 @@ const getTemplate = [
         user_id: req.user?.id,
         error: error.message,
         stack: error.stack,
+        sql_error: error.sql || 'No SQL captured',
         timestamp: new Date().toISOString(),
       });
       return res.status(500).json({ success: false, message: 'Server error', error: error.message });
@@ -1064,6 +1246,7 @@ const getResults = [
         console.log(`❌ GetResults failed: Template ${id} not found for user ${user_id}`, {
           timestamp: new Date().toISOString(),
           template_id: id,
+          existing_template_ids: (await Template.findAll({ attributes: ['id'] }).catch(() => [])).map((t) => t.id),
         });
         return res.status(404).json({ success: false, message: 'Template not found' });
       }
@@ -1072,6 +1255,8 @@ const getResults = [
         console.log(`❌ GetResults failed: Access denied for template ${id}, user ${user_id}`, {
           timestamp: new Date().toISOString(),
           template_id: id,
+          template_user_id: template.user_id,
+          user_is_admin: req.user.is_admin,
         });
         return res.status(403).json({ success: false, message: 'Forbidden: You do not have permission to view results' });
       }
@@ -1084,13 +1269,24 @@ const getResults = [
             model: FormAnswer,
             as: 'FormAnswers',
             include: [
-              { 
-                model: TemplateQuestion, 
-                as: 'TemplateQuestion', 
-                attributes: ['id', 'title', 'is_visible_in_results', 'attachment_url', 'type', 'options', 'min', 'max', 'min_label', 'max_label'], 
+              {
+                model: TemplateQuestion,
+                as: 'TemplateQuestion',
+                attributes: [
+                  'id',
+                  'title',
+                  'is_visible_in_results',
+                  'attachment_url',
+                  'type',
+                  'options',
+                  'min',
+                  'max',
+                  'min_label',
+                  'max_label',
+                ],
                 where: { is_visible_in_results: true },
-                required: false 
-              }
+                required: false,
+              },
             ],
             attributes: ['id', 'value'],
           },
@@ -1109,6 +1305,7 @@ const getResults = [
         user_id: req.user?.id,
         error: error.message,
         stack: error.stack,
+        sql_error: error.sql || 'No SQL captured',
         timestamp: new Date().toISOString(),
       });
       return res.status(500).json({ success: false, message: 'Server error', error: error.message });
