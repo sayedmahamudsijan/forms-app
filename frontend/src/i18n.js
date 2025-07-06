@@ -11,8 +11,8 @@ const resources = {
         searchLabel: 'Search Templates',
         searchPlaceholder: 'Search templates by keyword or tag',
         searchButton: 'Search',
-        search: 'Search', // For search button in Home.js
-        view: 'View', // For view button in Home.js
+        search: 'Search',
+        view: 'View',
         latestTemplates: 'Latest Templates',
         topTemplates: 'Top Templates',
         myTemplates: 'My Templates',
@@ -109,7 +109,7 @@ const resources = {
       search: {
         title: 'Search Results for "{title}"',
         titlePage: 'Search Results',
-        empty_query: 'No Query',
+        empty_query: 'No Query Optic',
         loading: 'Loading search results...',
         no_results: 'No templates found for the search query',
         load_error: 'Failed to load search results',
@@ -187,9 +187,9 @@ const resources = {
         noTopicsMessage: 'No topics available. Create one in the admin panel.',
         adminPanel: 'Admin Panel',
         tagsLabel: 'Tags',
-        tagsPlaceholder: 'Select tags', // Added for CreateTemplate.js
+        tagsPlaceholder: 'Select tags',
         permissionsLabel: 'Share with users',
-        permissionsPlaceholder: 'Select users to share with', // Added for CreateTemplate.js
+        permissionsPlaceholder: 'Select users to share with',
         questionsLabel: 'Questions',
         string: 'Short Text',
         text: 'Long Text',
@@ -232,12 +232,12 @@ const resources = {
         imagePlaceholder: 'Upload template image',
         imageRequired: 'Image is required',
         attachment: 'Question Attachment',
-        attachmentLabel: 'Attachment', // Added for CreateTemplate.js
+        attachmentLabel: 'Attachment',
         attachmentSelected: 'Selected: {name}',
         invalidAttachment: 'Invalid attachment type. Use JPEG, PNG, PDF, MP4, DOC, or DOCX.',
         attachmentTooLarge: 'Attachment size must be less than 10MB.',
         viewAttachment: 'View Attachment',
-        visibleInResults: 'Visible in Results', // Added for CreateTemplate.js
+        visibleInResults: 'Visible in Results',
       },
       templateList: {
         title: 'Title',
@@ -265,6 +265,8 @@ const resources = {
         noTopic: 'No topic assigned',
         noAttachments: 'No attachments available',
         invalidTemplateId: 'Invalid template ID',
+        attachments: 'Attachments',
+        view: 'View',
       },
       form: {
         title: 'Fill Form: {templateTitle}',
@@ -443,8 +445,8 @@ const resources = {
         searchLabel: 'Buscar Plantillas',
         searchPlaceholder: 'Buscar plantillas por palabra clave o etiqueta',
         searchButton: 'Buscar',
-        search: 'Buscar', // For search button in Home.js
-        view: 'Ver', // For view button in Home.js
+        search: 'Buscar',
+        view: 'Ver',
         latestTemplates: 'Últimas Plantillas',
         topTemplates: 'Plantillas Populares',
         myTemplates: 'Mis Plantillas',
@@ -697,6 +699,8 @@ const resources = {
         noTopic: 'Sin tema asignado',
         noAttachments: 'No hay adjuntos disponibles',
         invalidTemplateId: 'ID de plantilla inválido',
+        attachments: 'Adjuntos',
+        view: 'Ver',
       },
       form: {
         title: 'Completar Formulario: {templateTitle}',
@@ -882,10 +886,15 @@ function initializeI18n() {
         react: {
           useSuspense: false,
         },
-        debug: true, // Enable debug for logging
+        debug: true,
       })
       .then(() => {
-        console.log('✅ i18next initialized successfully', { timestamp: new Date().toISOString() });
+        console.log('✅ i18next initialized successfully', {
+          timestamp: new Date().toISOString(),
+          language: i18n.language,
+          availableNamespaces: Object.keys(resources.en),
+          templateListKeys: Object.keys(resources.en.translation.templateList),
+        });
         resolve();
       })
       .catch((error) => {
