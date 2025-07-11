@@ -409,6 +409,56 @@ function Profile() {
                 aria-labelledby="templates-tab-link"
               />
             )}
+            {/* === INTEGRATION: Salesforce Sync === */}
+            {activeTab === 'templates' && (
+              <div className="my-4">
+                <h5>{t('profile.salesforce_integration_title')}</h5>
+                <p>{t('profile.salesforce_integration_description')}</p>
+                <Button
+                  variant={theme === 'dark' ? 'outline-light' : 'secondary'}
+                  onClick={() => navigate('/salesforce-sync')}
+                  aria-label={t('profile.salesforce_sync_button')}
+                >
+                  {t('profile.salesforce_sync_button')}
+                </Button>
+              </div>
+            )}
+            {/* === INTEGRATION: Odoo API Token === */}
+            {activeTab === 'templates' && (
+              <div className="my-4">
+                <h5>{t('profile.odoo_integration_title')}</h5>
+                <Form.Group className="mb-2">
+                  <Form.Label>{t('profile.odoo_token')}</Form.Label>
+                  <InputGroup>
+                    <Form.Control
+                      type="text"
+                      value={user?.odoo_token || ''}
+                      readOnly
+                      aria-label={t('profile.odoo_token')}
+                    />
+                    <Button
+                      variant={theme === 'dark' ? 'outline-light' : 'outline-secondary'}
+                      onClick={async () => {
+                        try {
+                          const res = await axios.post(`${API_BASE}/api/odoo/token`, {}, {
+                            headers: { Authorization: `Bearer ${getToken()}` }
+                          });
+                          const updatedToken = res.data.token;
+                          setMessage({ type: 'success', text: t('profile.odoo_token_generated') });
+                          updateUser({ ...user, odoo_token: updatedToken });
+                        } catch (err) {
+                          console.error('❌ Failed to generate Odoo token:', err);
+                          setMessage({ type: 'danger', text: t('profile.odoo_token_failed') });
+                        }
+                      }}
+                      aria-label={t('profile.generate_token')}
+                    >
+                      {t('profile.generate_token')}
+                    </Button>
+                  </InputGroup>
+                </Form.Group>
+              </div>
+            )}
           </div>
         )}
 
