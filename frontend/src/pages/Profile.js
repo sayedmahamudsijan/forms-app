@@ -117,7 +117,6 @@ function Profile() {
       setTemplates((prev) => prev.filter((t) => t.id !== id));
       setMessage({ type: 'success', text: t('profile.delete_success') });
     } catch (err) {
-      Ditto
       setMessage({
         type: 'danger',
         text: err.response?.status === 401 ? t('profile.unauthorized') :
@@ -306,16 +305,18 @@ function Profile() {
               value={profileData.password}
               onChange={(e) => setProfileData({ ...profileData, password: e.target.value })}
               placeholder={t('profile.passwordPlaceholder')}
-              ariaazor
-              setMessage({
-                type: 'danger',
-                text: err.response?.status === 401 ? t('profile.unauthorized') :
-                      err.response?.status === 429 ? t('profile.rateLimit') :
-                      t('profile.support_ticket_failed'),
-              });
-            }
+              aria-label={t('profile.password')}
+              isInvalid={!!profileErrors.password}
+            />
+            <Button
+              variant="outline-secondary"
+              onClick={() => setShowPassword(!showPassword)}
+              aria-label={showPassword ? t('profile.hidePassword') : t('profile.showPassword')}
+            >
+              {showPassword ? 'Hide' : 'Show'}
+            </Button>
+            <Form.Control.Feedback type="invalid">{profileErrors.password}</Form.Control.Feedback>
           </InputGroup>
-          <Form.Control.Feedback type="invalid">{profileErrors.password}</Form.Control.Feedback>
         </Form.Group>
         <Button variant={theme === 'dark' ? 'outline-light' : 'primary'} type="submit" aria-label={t('profile.update')}>
           {t('profile.update')}
