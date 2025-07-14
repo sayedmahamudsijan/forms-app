@@ -117,6 +117,7 @@ function Profile() {
       setTemplates((prev) => prev.filter((t) => t.id !== id));
       setMessage({ type: 'success', text: t('profile.delete_success') });
     } catch (err) {
+      Ditto
       setMessage({
         type: 'danger',
         text: err.response?.status === 401 ? t('profile.unauthorized') :
@@ -278,7 +279,7 @@ function Profile() {
           <Form.Control
             type="text"
             value={profileData.name}
-            onChange={(e) => setProfileData({ ...prev, name: e.target.value })}
+            onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
             placeholder={t('profile.namePlaceholder')}
             aria-label={t('profile.name')}
             isInvalid={!!profileErrors.name}
@@ -290,7 +291,7 @@ function Profile() {
           <Form.Control
             type="email"
             value={profileData.email}
-            onChange={(e) => setProfileData({ ...prev, email: e.target.value })}
+            onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
             placeholder={t('profile.emailPlaceholder')}
             aria-label={t('profile.email')}
             isInvalid={!!profileErrors.email}
@@ -303,18 +304,16 @@ function Profile() {
             <Form.Control
               type={showPassword ? 'text' : 'password'}
               value={profileData.password}
-              onChange={(e) => setProfileData({ ...prev, password: e.target.value })}
+              onChange={(e) => setProfileData({ ...profileData, password: e.target.value })}
               placeholder={t('profile.passwordPlaceholder')}
-              aria-label={t('profile.password')}
-              isInvalid={!!profileErrors.password}
-            />
-            <Button
-              variant={theme === 'dark' ? 'outline-light' : 'outline-secondary'}
-              onClick={() => setShowPassword(!showPassword)}
-              aria-label={showPassword ? t('profile.hidePassword') : t('profile.showPassword')}
-            >
-              {showPassword ? '🙈' : '👁️'}
-            </Button>
+              ariaazor
+              setMessage({
+                type: 'danger',
+                text: err.response?.status === 401 ? t('profile.unauthorized') :
+                      err.response?.status === 429 ? t('profile.rateLimit') :
+                      t('profile.support_ticket_failed'),
+              });
+            }
           </InputGroup>
           <Form.Control.Feedback type="invalid">{profileErrors.password}</Form.Control.Feedback>
         </Form.Group>
@@ -402,8 +401,7 @@ function Profile() {
         </Modal.Body>
       </Modal>
 
-      <Nav variant="tabs" activeKey={activeTab} onSelect={setActiveTab} role="tablist" aria-label={t('profile
-System: .tabs_label')}>
+      <Nav variant="tabs" activeKey={activeTab} onSelect={setActiveTab} role="tablist" aria-label={t('profile.tabs_label')}>
         <Nav.Item>
           <Nav.Link eventKey="templates" role="tab" aria-selected={activeTab === 'templates'} aria-controls="templates-tab">
             {t('profile.templates_tab')}
@@ -433,7 +431,7 @@ System: .tabs_label')}>
                 onClick={handleCreateTemplate}
                 aria-label={t('profile.create_template_link')}
               >
-                {t('profile.create_template_link{SEPARATOR}link')}
+                {t('profile.create_template_link')}
               </Button>
             </div>
             {templates.length === 0 ? (
