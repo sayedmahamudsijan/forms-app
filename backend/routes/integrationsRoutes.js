@@ -1,12 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { authMiddleware } = require('../middleware/authMiddleware');
 const integrationsController = require('../controllers/integrationsController');
+const { authenticateToken } = require('../middleware/auth');
 
-// Salesforce Sync
-router.post('/salesforce/sync', authMiddleware, integrationsController.syncSalesforce);
-
-// Odoo Token Generation
-router.post('/odoo/token', authMiddleware, integrationsController.generateOdooToken);
+router.post('/salesforce/sync', authenticateToken, integrationsController.syncSalesforce);
+router.post('/odoo/token', authenticateToken, integrationsController.generateOdooToken);
 
 module.exports = router;
