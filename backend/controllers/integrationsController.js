@@ -40,7 +40,11 @@ exports.syncSalesforce = async (req, res) => {
 
     return res.status(200).json({ message: 'Successfully synced with Salesforce' });
   } catch (error) {
-    console.error('Salesforce sync error:', error.message);
+    console.error('❌ Salesforce sync error:', {
+      message: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString(),
+    });
     return res.status(error.response?.status || 500).json({
       error: error.response?.data?.error || 'Failed to sync with Salesforce',
     });
@@ -78,7 +82,11 @@ exports.generateOdooToken = async (req, res) => {
 
     return res.status(200).json({ token });
   } catch (error) {
-    console.error('Odoo token generation error:', error.message);
+    console.error('❌ Odoo token generation error:', {
+      message: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString(),
+    });
     return res.status(error.response?.status || 500).json({
       error: 'Failed to generate Odoo token',
     });
