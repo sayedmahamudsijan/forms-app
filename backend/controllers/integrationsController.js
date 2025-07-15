@@ -2,6 +2,28 @@ const axios = require('axios');
 const { User } = require('../models');
 const logger = require('../utils/logger');
 
+const getSalesforceAccessToken = async () => {
+  try {
+    const response = await axios.post(
+      'https://orgfarm-e8b8e800e5-dev-ed.develop.my.salesforce.com/services/oauth2/token',
+      new URLSearchParams({
+        grant_type: 'password',
+        client_id: process.env.SALESFORCE_CLIENT_ID,
+        client_secret: process.env.SALESFORCE_CLIENT_SECRET,
+        username: process.env.SALESFORCE_USERNAME,
+        password: process.env.SALESFORCE_PASSWORD
+      }),
+      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+    );
+    return response.data.access_token;
+  } catch (error) {
+    logger.error('Failed to fetch Salesforce access token', {
+      error: error.response?.data || error.message
+    });
+    throw error;
+  }
+};
+
 const syncSalesforce = async (req, res) => {
   const { companyName, phone, address } = req.body;
   const user = req.user;
@@ -12,25 +34,46 @@ const syncSalesforce = async (req, res) => {
   }
 
   try {
-    const response = await axios.post(
+    const accessToken = await getSalesforceAccessToken();
+
+    // Step 1: Create Account
+    const accountResponse = await axios.post(
+      'https://orgfarm-e8b8e800e5-dev-ed.develop.my.salesforce.com/services/data/v60.0/sobjects/Account/',
+      { Name: companyName },
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    const accountId = accountResponse.data.id;
+    if (!accountId) {
+      logger.error('Failed to create Salesforce Account', { userId: user.id });
+      return res.status(500).json({ error: 'Failed to create Salesforce Account' });
+    }
+
+    // Step 2: Create Contact linked to Account
+    const contactResponse = await axios.post(
       'https://orgfarm-e8b8e800e5-dev-ed.develop.my.salesforce.com/services/data/v60.0/sobjects/Contact/',
       {
         LastName: user.name || 'Unknown',
         Email: user.email,
         Phone: phone,
         MailingStreet: address,
-        Account: { Name: companyName }
+        AccountId: accountId // Link to the created Account
       },
       {
         headers: {
-          Authorization: `Bearer ${process.env.SALESFORCE_ACCESS_TOKEN}`,
+          Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         }
       }
     );
 
-    logger.info('Successfully synced with Salesforce', { userId: user.id, salesforceId: response.data.id });
-    res.status(200).json({ message: 'Successfully synced with Salesforce', salesforceId: response.data.id });
+    logger.info('Successfully synced with Salesforce', { userId: user.id, salesforceId: contactResponse.data.id, accountId });
+    res.status(200).json({ message: 'Successfully synced with Salesforce', salesforceId: contactResponse.data.id, accountId });
   } catch (error) {
     logger.error('Salesforce sync failed', {
       userId: user.id,
