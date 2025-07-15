@@ -123,6 +123,7 @@ const resources = {
         addressRequired: 'Address is required',
         salesforce_sync_success: 'Successfully synced with Salesforce',
         salesforce_sync_failed: 'Failed to sync with Salesforce',
+        salesforce_token_expired: 'Salesforce authentication expired. Please contact support to refresh the token.', // Added
         odoo_integration_title: 'Odoo Integration',
         odoo_token: 'API Token',
         generate_token: 'Generate Token',
@@ -631,6 +632,7 @@ const resources = {
         addressRequired: 'La dirección es obligatoria',
         salesforce_sync_success: 'Sincronizado exitosamente con Salesforce',
         salesforce_sync_failed: 'Error al sincronizar con Salesforce',
+        salesforce_token_expired: 'La autenticación de Salesforce ha expirado. Por favor, contacta al soporte para actualizar el token.', // Added
         odoo_integration_title: 'Integración con Odoo',
         odoo_token: 'Token de API',
         generate_token: 'Generar Token',
