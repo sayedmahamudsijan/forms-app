@@ -12,7 +12,6 @@ const syncSalesforce = async (req, res) => {
   }
 
   try {
-    // Step 1: Create Account
     const accountResponse = await axios.post(
       'https://orgfarm-e8b8e800e5-dev-ed.develop.my.salesforce.com/services/data/v60.0/sobjects/Account/',
       { Name: companyName },
@@ -30,7 +29,6 @@ const syncSalesforce = async (req, res) => {
       return res.status(500).json({ error: 'Failed to create Salesforce Account' });
     }
 
-    // Step 2: Create Contact linked to Account
     const contactResponse = await axios.post(
       'https://orgfarm-e8b8e800e5-dev-ed.develop.my.salesforce.com/services/data/v60.0/sobjects/Contact/',
       {
@@ -78,14 +76,14 @@ const generateOdooToken = async (req, res) => {
       { headers: { 'Content-Type': 'application/json' } }
     );
 
-    const token = response.data.result?.session_id;
+    const token = response.data.result?.uid; // Use uid instead of session_id
     if (!token) {
-      logger.error('Failed to generate Odoo token: No session_id', { userId: user.id });
+      logger.error('Failed to generate Odoo token: No uid', { userId: user.id, response: response.data });
       return res.status(500).json({ error: 'Failed to generate Odoo token' });
     }
 
     await User.update({ odoo_token: token }, { where: { id: user.id } });
-    logger.info('Odoo token generated successfully', { userId: user.id });
+    logger.info('Odoo token generated successfully', { userId: user.id, token });
     res.status(200).json({ token });
   } catch (error) {
     logger.error('Odoo token generation failed', {
