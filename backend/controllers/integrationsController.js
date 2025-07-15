@@ -19,7 +19,7 @@ exports.syncSalesforce = async (req, res) => {
       return res.status(500).json({ error: 'Salesforce configuration missing' });
     }
 
-    // Example Salesforce API call to create/update a contact
+    // Create or update a Salesforce Contact
     await axios.post(
       `${salesforceUrl}/sobjects/Contact`,
       {
@@ -60,7 +60,7 @@ exports.generateOdooToken = async (req, res) => {
       return res.status(500).json({ error: 'Odoo configuration missing' });
     }
 
-    // Authenticate with Odoo to get a session
+    // Authenticate with Odoo
     const authResponse = await axios.post(`${odooUrl}/web/session/authenticate`, {
       jsonrpc: '2.0',
       params: { db: odooDb, login: odooUsername, password: odooPassword },
@@ -81,48 +81,6 @@ exports.generateOdooToken = async (req, res) => {
     console.error('Odoo token generation error:', error.message);
     return res.status(error.response?.status || 500).json({
       error: 'Failed to generate Odoo token',
-    });
-  }
-};
-
-// Power Automate Support Ticket
-exports.createSupportTicket = async (req, res) => {
-  try {
-    const { summary, priority, reportedBy, template, link } = req.body;
-
-    if (!summary || !reportedBy) {
-      return res.status(400).json({ error: 'Missing required fields' });
-    }
-
-    const powerAutomateUrl = process.env.POWER_AUTOMATE_API_URL;
-
-    if (!powerAutomateUrl) {
-      return res.status(500).json({ error: 'Power Automate configuration missing' });
-    }
-
-    // Example Power Automate API call
-    await axios.post(
-      powerAutomateUrl,
-      {
-        summary,
-        priority: priority || 'Low',
-        reportedBy,
-        template: template || 'N/A',
-        link: link || 'N/A',
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${process.env.POWER_AUTOMATE_TOKEN}`,
-        },
-      }
-    );
-
-    return res.status(200).json({ message: 'Support ticket created successfully' });
-  } catch (error) {
-    console.error('Support ticket creation error:', error.message);
-    return res.status(error.response?.status || 500).json({
-      error: error.response?.data?.error || 'Failed to create support ticket',
     });
   }
 };
