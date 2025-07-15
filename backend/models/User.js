@@ -9,6 +9,7 @@ module.exports = (sequelize, DataTypes) => {
     language: { type: DataTypes.STRING, defaultValue: 'en' },
     theme: { type: DataTypes.STRING, defaultValue: 'light' },
     version: { type: DataTypes.INTEGER, defaultValue: 1 },
+    odoo_token: { type: DataTypes.STRING, allowNull: true }, // Added odoo_token field
   }, {
     timestamps: true,
     underscored: true,
