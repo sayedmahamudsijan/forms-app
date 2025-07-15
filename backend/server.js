@@ -140,6 +140,7 @@ app.use('/api/comments', require('./routes/commentRoutes'));
 app.use('/api/topics', require('./routes/topicRoutes'));
 app.use('/api/tags', require('./routes/tagRoutes'));
 app.use('/api/likes', require('./routes/likeRoutes'));
+app.use('/api', require('./routes/integrationsRoutes')); // Added integrations routes
 
 // 404 Handler
 app.use((req, res, next) => {
