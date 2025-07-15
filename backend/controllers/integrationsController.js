@@ -2,28 +2,6 @@ const axios = require('axios');
 const { User } = require('../models');
 const logger = require('../utils/logger');
 
-const getSalesforceAccessToken = async () => {
-  try {
-    const response = await axios.post(
-      'https://orgfarm-e8b8e800e5-dev-ed.develop.my.salesforce.com/services/oauth2/token',
-      new URLSearchParams({
-        grant_type: 'password',
-        client_id: process.env.SALESFORCE_CLIENT_ID,
-        client_secret: process.env.SALESFORCE_CLIENT_SECRET,
-        username: process.env.SALESFORCE_USERNAME,
-        password: process.env.SALESFORCE_PASSWORD
-      }),
-      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
-    );
-    return response.data.access_token;
-  } catch (error) {
-    logger.error('Failed to fetch Salesforce access token', {
-      error: error.response?.data || error.message
-    });
-    throw error;
-  }
-};
-
 const syncSalesforce = async (req, res) => {
   const { companyName, phone, address } = req.body;
   const user = req.user;
@@ -34,15 +12,13 @@ const syncSalesforce = async (req, res) => {
   }
 
   try {
-    const accessToken = await getSalesforceAccessToken();
-
     // Step 1: Create Account
     const accountResponse = await axios.post(
       'https://orgfarm-e8b8e800e5-dev-ed.develop.my.salesforce.com/services/data/v60.0/sobjects/Account/',
       { Name: companyName },
       {
         headers: {
-          Authorization: `Bearer ${accessToken}`,
+          Authorization: `Bearer ${process.env.SALESFORCE_ACCESS_TOKEN}`,
           'Content-Type': 'application/json'
         }
       }
@@ -62,11 +38,11 @@ const syncSalesforce = async (req, res) => {
         Email: user.email,
         Phone: phone,
         MailingStreet: address,
-        AccountId: accountId // Link to the created Account
+        AccountId: accountId
       },
       {
         headers: {
-          Authorization: `Bearer ${accessToken}`,
+          Authorization: `Bearer ${process.env.SALESFORCE_ACCESS_TOKEN}`,
           'Content-Type': 'application/json'
         }
       }
