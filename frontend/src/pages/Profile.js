@@ -31,6 +31,9 @@ function Profile() {
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [supportData, setSupportData] = useState({ summary: '', priority: 'Low' });
   const [supportErrors, setSupportErrors] = useState({});
+  const [salesforceLoading, setSalesforceLoading] = useState(false);
+  const [odooLoading, setOdooLoading] = useState(false);
+
 
   useEffect(() => {
     if (user) {
@@ -149,46 +152,54 @@ function Profile() {
   };
 
   const handleSalesforceSync = async (e) => {
-    e.preventDefault();
-    if (!validateSalesforce()) return;
-    setMessage(null);
-    try {
-      const token = getToken();
-      const response = await axios.post(
-        `${API_BASE}/api/salesforce/sync`,
-        salesforceData,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setMessage({ type: 'success', text: t('profile.salesforce_sync_success') });
-      setShowSalesforceModal(false);
-      setSalesforceData({ companyName: '', phone: '', address: '' });
-    } catch (err) {
-      setMessage({
-        type: 'danger',
-        text: err.response?.status === 401 ? t('profile.salesforce_token_expired') :
-              err.response?.status === 429 ? t('profile.rateLimit') :
-              err.response?.data?.error || t('profile.salesforce_sync_failed'),
-      });
-    }
-  };
+  e.preventDefault();
+  if (!validateSalesforce()) return;
+  setMessage(null);
+  setSalesforceLoading(true);
+  try {
+    const token = getToken();
+    const response = await axios.post(
+      `${API_BASE}/api/salesforce/sync`,
+      salesforceData,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    setMessage({ type: 'success', text: t('profile.salesforce_sync_success') });
+    setShowSalesforceModal(false);
+    setSalesforceData({ companyName: '', phone: '', address: '' });
+  } catch (err) {
+    setMessage({
+      type: 'danger',
+      text: err.response?.status === 401 ? t('profile.salesforce_token_expired') :
+            err.response?.status === 429 ? t('profile.rateLimit') :
+            err.response?.data?.error || t('profile.salesforce_sync_failed'),
+    });
+  } finally {
+    setSalesforceLoading(false);
+  }
+};
+
 
   const handleGenerateOdooToken = async () => {
-    try {
-      const token = getToken();
-      const res = await axios.post(`${API_BASE}/api/odoo/token`, {}, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      updateUser({ ...user, odoo_token: res.data.token });
-      setMessage({ type: 'success', text: t('profile.odoo_token_generated') });
-    } catch (err) {
-      setMessage({
-        type: 'danger',
-        text: err.response?.status === 401 ? t('profile.unauthorized') :
-              err.response?.status === 429 ? t('profile.rateLimit') :
-              err.response?.data?.error || t('profile.odoo_token_failed'),
-      });
-    }
-  };
+  setOdooLoading(true);
+  try {
+    const token = getToken();
+    const res = await axios.post(`${API_BASE}/api/odoo/token`, {}, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    updateUser({ ...user, odoo_token: res.data.token });
+    setMessage({ type: 'success', text: t('profile.odoo_token_generated') });
+  } catch (err) {
+    setMessage({
+      type: 'danger',
+      text: err.response?.status === 401 ? t('profile.unauthorized') :
+            err.response?.status === 429 ? t('profile.rateLimit') :
+            err.response?.data?.error || t('profile.odoo_token_failed'),
+    });
+  } finally {
+    setOdooLoading(false);
+  }
+};
+
 
   const validateSupportTicket = () => {
     const errors = {};
