@@ -62,24 +62,33 @@ const syncSalesforce = async (req, res) => {
 const generateOdooToken = async (req, res) => {
   const user = req.user;
 
+  if (!process.env.ODOO_LOGIN || !process.env.ODOO_PASSWORD) {
+    logger.error('Odoo credentials missing in environment variables', { userId: user.id });
+    return res.status(500).json({ error: 'Server configuration error: Odoo credentials missing' });
+  }
+
+  const payload = {
+    jsonrpc: '2.0',
+    params: {
+      db: 'itransition',
+      login: process.env.ODOO_LOGIN,
+      password: process.env.ODOO_PASSWORD
+    }
+  };
+
+  logger.info('Sending Odoo authentication request', { userId: user.id, payload });
+
   try {
     const response = await axios.post(
       'https://itransition.odoo.com/web/session/authenticate',
-      {
-        jsonrpc: '2.0',
-        params: {
-          db: 'itransition',
-          login: process.env.ODOO_LOGIN,
-          password: process.env.ODOO_PASSWORD
-        }
-      },
+      payload,
       { headers: { 'Content-Type': 'application/json' } }
     );
 
-    const token = response.data.result?.uid; // Use uid instead of session_id
+    const token = response.data.result?.uid;
     if (!token) {
-      logger.error('Failed to generate Odoo token: No uid', { userId: user.id, response: response.data });
-      return res.status(500).json({ error: 'Failed to generate Odoo token' });
+      logger.error('Failed to generate Odoo token: No uid in response', { userId: user.id, response: response.data });
+      return res.status(500).json({ error: 'Failed to generate Odoo token: No uid' });
     }
 
     await User.update({ odoo_token: token }, { where: { id: user.id } });
