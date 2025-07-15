@@ -154,7 +154,7 @@ function Profile() {
     setMessage(null);
     try {
       const token = getToken();
-      await axios.post(
+      const response = await axios.post(
         `${API_BASE}/api/salesforce/sync`,
         salesforceData,
         { headers: { Authorization: `Bearer ${token}` } }
@@ -165,9 +165,9 @@ function Profile() {
     } catch (err) {
       setMessage({
         type: 'danger',
-        text: err.response?.status === 401 ? t('profile.unauthorized') :
+        text: err.response?.status === 401 ? t('profile.salesforce_token_expired') :
               err.response?.status === 429 ? t('profile.rateLimit') :
-              t('profile.salesforce_sync_failed'),
+              err.response?.data?.error || t('profile.salesforce_sync_failed'),
       });
     }
   };
@@ -181,7 +181,12 @@ function Profile() {
       updateUser({ ...user, odoo_token: res.data.token });
       setMessage({ type: 'success', text: t('profile.odoo_token_generated') });
     } catch (err) {
-      setMessage({ type: 'danger', text: t('profile.odoo_token_failed') });
+      setMessage({
+        type: 'danger',
+        text: err.response?.status === 401 ? t('profile.unauthorized') :
+              err.response?.status === 429 ? t('profile.rateLimit') :
+              err.response?.data?.error || t('profile.odoo_token_failed'),
+      });
     }
   };
 
@@ -197,6 +202,11 @@ function Profile() {
     if (!validateSupportTicket()) return;
     setMessage(null);
     try {
+      // Temporary mock response until Power Automate endpoint is implemented
+      setMessage({ type: 'success', text: t('profile.support_ticket_success') });
+      setShowSupportModal(false);
+      setSupportData({ summary: '', priority: 'Low' });
+      /* Uncomment when backend endpoint is ready
       const token = getToken();
       await axios.post(
         `${API_BASE}/api/support/ticket`,
@@ -211,12 +221,13 @@ function Profile() {
       setMessage({ type: 'success', text: t('profile.support_ticket_success') });
       setShowSupportModal(false);
       setSupportData({ summary: '', priority: 'Low' });
+      */
     } catch (err) {
       setMessage({
         type: 'danger',
         text: err.response?.status === 401 ? t('profile.unauthorized') :
               err.response?.status === 429 ? t('profile.rateLimit') :
-              t('profile.support_ticket_failed'),
+              err.response?.data?.error || t('profile.support_ticket_failed'),
       });
     }
   };
