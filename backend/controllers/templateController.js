@@ -11,6 +11,7 @@ const {
   FormAnswer,
 } = require('../models');
 const { uploadFile } = require('../services/cloudinaryService');
+const logger = require('../utils/logger'); // Added logger for consistency with integrationsController.js
 
 // Middleware to parse JSON strings in specific fields
 const parseJsonFields = (req, res, next) => {
@@ -117,7 +118,12 @@ const validateUpdateTemplate = [
   body('permissions').isArray().withMessage('Permissions must be an array'),
 ];
 
-const validateGetTemplate = [param('id').isInt().withMessage('Invalid template ID')];
+// Updated validation for getResults to allow 'owned' or numeric ID
+const validateGetTemplate = [
+  param('id')
+    .custom((value) => !isNaN(value) || value === 'owned')
+    .withMessage('Invalid template ID: Must be a number or "owned"'),
+];
 
 const createTemplate = [
   parseJsonFields,
@@ -1228,8 +1234,10 @@ const getResults = [
   async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      console.log(`❌ GetResults validation failed: ${JSON.stringify(errors.array())}`, {
+      logger.error(`GetResults validation failed: ${JSON.stringify(errors.array())}`, {
         timestamp: new Date().toISOString(),
+        params: req.params,
+        userId: req.user?.id,
       });
       return res.status(400).json({ success: false, errors: errors.array() });
     }
@@ -1238,71 +1246,133 @@ const getResults = [
       const { id } = req.params;
       const user_id = parseInt(req.user.id, 10);
 
-      const template = await Template.findByPk(id, {
-        attributes: ['id', 'user_id', 'is_public'],
-      });
-
-      if (!template) {
-        console.log(`❌ GetResults failed: Template ${id} not found for user ${user_id}`, {
-          timestamp: new Date().toISOString(),
-          template_id: id,
-          existing_template_ids: (await Template.findAll({ attributes: ['id'] }).catch(() => [])).map((t) => t.id),
+      let templates;
+      if (id === 'owned') {
+        // Fetch all templates owned by the user
+        templates = await Template.findAll({
+          where: { user_id },
+          include: [
+            { model: User, as: 'User', attributes: ['id', 'name', 'email'], required: false },
+            { model: Topic, as: 'Topic', attributes: ['id', 'name'], required: false },
+            {
+              model: TemplateQuestion,
+              as: 'TemplateQuestions',
+              attributes: ['id', 'type', 'title', 'is_visible_in_results'],
+              where: { is_visible_in_results: true },
+              required: false,
+            },
+          ],
         });
-        return res.status(404).json({ success: false, message: 'Template not found' });
+      } else {
+        // Fetch specific template
+        const template = await Template.findByPk(id, {
+          attributes: ['id', 'user_id', 'is_public', 'title'],
+          include: [
+            { model: User, as: 'User', attributes: ['id', 'name', 'email'], required: false },
+            { model: Topic, as: 'Topic', attributes: ['id', 'name'], required: false },
+            {
+              model: TemplateQuestion,
+              as: 'TemplateQuestions',
+              attributes: ['id', 'type', 'title', 'is_visible_in_results'],
+              where: { is_visible_in_results: true },
+              required: false,
+            },
+          ],
+        });
+
+        if (!template) {
+          logger.error(`GetResults failed: Template ${id} not found for user ${user_id}`, {
+            timestamp: new Date().toISOString(),
+            template_id: id,
+            userId: user_id,
+            existing_template_ids: (await Template.findAll({ attributes: ['id'] }).catch(() => [])).map((t) => t.id),
+          });
+          return res.status(404).json({ success: false, message: 'Template not found' });
+        }
+
+        if (!template.is_public && template.user_id !== user_id && !req.user.is_admin) {
+          logger.error(`GetResults failed: Access denied for template ${id}, user ${user_id}`, {
+            timestamp: new Date().toISOString(),
+            template_id: id,
+            template_user_id: template.user_id,
+            user_is_admin: req.user.is_admin,
+          });
+          return res.status(403).json({ success: false, message: 'Forbidden: You do not have permission to view results' });
+        }
+
+        templates = [template];
       }
 
-      if (!template.is_public && template.user_id !== user_id && !req.user.is_admin) {
-        console.log(`❌ GetResults failed: Access denied for template ${id}, user ${user_id}`, {
+      if (!templates.length) {
+        logger.info(`No templates found for user ${user_id}`, {
           timestamp: new Date().toISOString(),
-          template_id: id,
-          template_user_id: template.user_id,
-          user_is_admin: req.user.is_admin,
+          userId: user_id,
         });
-        return res.status(403).json({ success: false, message: 'Forbidden: You do not have permission to view results' });
+        return res.status(404).json({ success: false, message: 'No templates found' });
       }
 
-      const forms = await Form.findAll({
-        where: { template_id: id },
-        attributes: ['id', 'user_id', 'created_at'],
-        include: [
-          {
-            model: FormAnswer,
-            as: 'FormAnswers',
-            include: [
-              {
-                model: TemplateQuestion,
-                as: 'TemplateQuestion',
-                attributes: [
-                  'id',
-                  'title',
-                  'is_visible_in_results',
-                  'attachment_url',
-                  'type',
-                  'options',
-                  'min',
-                  'max',
-                  'min_label',
-                  'max_label',
+      const results = await Promise.all(
+        templates.map(async (template) => {
+          const questions = template.TemplateQuestions || [];
+
+          const questionResults = await Promise.all(
+            questions.map(async (question) => {
+              const answers = await FormAnswer.findAll({
+                include: [
+                  {
+                    model: Form,
+                    where: { template_id: template.id },
+                    attributes: [],
+                  },
                 ],
-                where: { is_visible_in_results: true },
-                required: false,
-              },
-            ],
-            attributes: ['id', 'value'],
-          },
-          { model: User, as: 'User', attributes: ['id', 'name', 'email'], required: false },
-        ],
-        order: [['created_at', 'DESC']],
-      });
+                where: { question_id: question.id },
+                attributes: ['value'],
+              });
 
-      console.log(`✅ Fetched ${forms.length} results for template ${id} by User ID ${user_id}`, {
+              let aggregatedResult = { answer_count: answers.length };
+              if (question.type === 'integer' || question.type === 'linear_scale') {
+                const values = answers.map((a) => parseInt(a.value)).filter((v) => !isNaN(v));
+                aggregatedResult.average = values.length ? (values.reduce((a, b) => a + b, 0) / values.length).toFixed(2) : null;
+                aggregatedResult.min = values.length ? Math.min(...values) : null;
+                aggregatedResult.max = values.length ? Math.max(...values) : null;
+              } else if (['text', 'string'].includes(question.type)) {
+                const valueCounts = answers.reduce((acc, a) => {
+                  acc[a.value] = (acc[a.value] || 0) + 1;
+                  return acc;
+                }, {});
+                aggregatedResult.popular_answers = Object.entries(valueCounts)
+                  .sort((a, b) => b[1] - a[1])
+                  .slice(0, 3)
+                  .map(([value]) => value);
+              }
+
+              return {
+                text: question.title,
+                type: question.type,
+                ...aggregatedResult,
+              };
+            })
+          );
+
+          return {
+            template_id: template.id,
+            author: template.User?.email || 'Unknown',
+            title: template.title,
+            topic_name: template.Topic?.name || 'Unknown',
+            questions: questionResults,
+          };
+        })
+      );
+
+      logger.info(`Fetched ${results.length} template results for User ID ${user_id}`, {
         timestamp: new Date().toISOString(),
+        template_ids: results.map((r) => r.template_id),
       });
-      return res.json({ success: true, forms });
+      return res.json({ success: true, results });
     } catch (error) {
-      console.error('❌ Error fetching results:', {
+      logger.error(`Error fetching results for user ${req.user?.id}`, {
         template_id: req.params.id,
-        user_id: req.user?.id,
+        userId: req.user?.id,
         error: error.message,
         stack: error.stack,
         sql_error: error.sql || 'No SQL captured',
