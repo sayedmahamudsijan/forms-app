@@ -62,7 +62,7 @@ const syncSalesforce = async (req, res) => {
 const generateOdooToken = async (req, res) => {
   const user = req.user;
 
-  if (!process.env.ODOO_LOGIN || !process.env.ODOO_PASSWORD) {
+  if (!process.env.ODOO_USERNAME || !process.env.ODOO_PASSWORD) {
     logger.error('Odoo credentials missing in environment variables', { userId: user.id });
     return res.status(500).json({ error: 'Server configuration error: Odoo credentials missing' });
   }
@@ -70,8 +70,8 @@ const generateOdooToken = async (req, res) => {
   const payload = {
     jsonrpc: '2.0',
     params: {
-      db: 'itransition',
-      login: process.env.ODOO_LOGIN,
+      db: process.env.ODOO_DB,
+      login: process.env.ODOO_USERNAME,
       password: process.env.ODOO_PASSWORD
     }
   };
@@ -80,7 +80,7 @@ const generateOdooToken = async (req, res) => {
 
   try {
     const response = await axios.post(
-      'https://itransition.odoo.com/web/session/authenticate',
+      process.env.ODOO_API_URL + '/web/session/authenticate',
       payload,
       { headers: { 'Content-Type': 'application/json' } }
     );
