@@ -9,7 +9,4 @@ router.post('/salesforce/sync', authMiddleware, integrationsController.syncSales
 // Odoo Token Generation
 router.post('/odoo/token', authMiddleware, integrationsController.generateOdooToken);
 
-// Power Automate Support Ticket
-router.post('/support/ticket', authMiddleware, integrationsController.createSupportTicket);
-
 module.exports = router;
