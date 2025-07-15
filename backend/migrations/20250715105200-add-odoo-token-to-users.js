@@ -9,6 +9,6 @@ module.exports = {
   },
 
   down: async (queryInterface, Sequelize) => {
-    await queryInterface.removeColumn('Users', 'odoo_token');
+    await queryInterface.removeColumn('users', 'odoo_token');
   },
 };
