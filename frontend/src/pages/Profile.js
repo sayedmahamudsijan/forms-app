@@ -33,11 +33,12 @@ function Profile() {
   const [supportErrors, setSupportErrors] = useState({});
   const [salesforceLoading, setSalesforceLoading] = useState(false);
   const [odooLoading, setOdooLoading] = useState(false);
-
+  const [odooToken, setOdooToken] = useState(user?.odoo_token || ''); // Added local state for token
 
   useEffect(() => {
     if (user) {
       setProfileData({ name: user.name || '', email: user.email || '', password: '' });
+      setOdooToken(user.odoo_token || ''); // Update local token state when user changes
     }
   }, [user]);
 
@@ -152,54 +153,55 @@ function Profile() {
   };
 
   const handleSalesforceSync = async (e) => {
-  e.preventDefault();
-  if (!validateSalesforce()) return;
-  setMessage(null);
-  setSalesforceLoading(true);
-  try {
-    const token = getToken();
-    const response = await axios.post(
-      `${API_BASE}/api/salesforce/sync`,
-      salesforceData,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    setMessage({ type: 'success', text: t('profile.salesforce_sync_success') });
-    setShowSalesforceModal(false);
-    setSalesforceData({ companyName: '', phone: '', address: '' });
-  } catch (err) {
-    setMessage({
-      type: 'danger',
-      text: err.response?.status === 401 ? t('profile.salesforce_token_expired') :
-            err.response?.status === 429 ? t('profile.rateLimit') :
-            err.response?.data?.error || t('profile.salesforce_sync_failed'),
-    });
-  } finally {
-    setSalesforceLoading(false);
-  }
-};
-
+    e.preventDefault();
+    if (!validateSalesforce()) return;
+    setMessage(null);
+    setSalesforceLoading(true);
+    try {
+      const token = getToken();
+      const response = await axios.post(
+        `${API_BASE}/api/salesforce/sync`,
+        salesforceData,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setMessage({ type: 'success', text: t('profile.salesforce_sync_success') });
+      setShowSalesforceModal(false);
+      setSalesforceData({ companyName: '', phone: '', address: '' });
+    } catch (err) {
+      setMessage({
+        type: 'danger',
+        text: err.response?.status === 401 ? t('profile.salesforce_token_expired') :
+              err.response?.status === 429 ? t('profile.rateLimit') :
+              err.response?.data?.error || t('profile.salesforce_sync_failed'),
+      });
+    } finally {
+      setSalesforceLoading(false);
+    }
+  };
 
   const handleGenerateOdooToken = async () => {
-  setOdooLoading(true);
-  try {
-    const token = getToken();
-    const res = await axios.post(`${API_BASE}/api/odoo/token`, {}, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    updateUser({ ...user, odoo_token: res.data.token });
-    setMessage({ type: 'success', text: t('profile.odoo_token_generated') });
-  } catch (err) {
-    setMessage({
-      type: 'danger',
-      text: err.response?.status === 401 ? t('profile.unauthorized') :
-            err.response?.status === 429 ? t('profile.rateLimit') :
-            err.response?.data?.error || t('profile.odoo_token_failed'),
-    });
-  } finally {
-    setOdooLoading(false);
-  }
-};
-
+    setOdooLoading(true);
+    setMessage(null); // Clear previous messages
+    try {
+      const token = getToken();
+      const res = await axios.post(`${API_BASE}/api/odoo/token`, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const newToken = res.data.token; // Get token from response
+      await updateUser({ ...user, odoo_token: newToken }); // Update user context
+      setOdooToken(newToken); // Update local state to display token
+      setMessage({ type: 'success', text: t('profile.odoo_token_generated') });
+    } catch (err) {
+      setMessage({
+        type: 'danger',
+        text: err.response?.status === 401 ? t('profile.unauthorized') :
+              err.response?.status === 429 ? t('profile.rateLimit') :
+              err.response?.data?.error || t('profile.odoo_token_failed'),
+      });
+    } finally {
+      setOdooLoading(false);
+    }
+  };
 
   const validateSupportTicket = () => {
     const errors = {};
@@ -279,6 +281,11 @@ function Profile() {
       {message && (
         <Alert variant={message.type} role="alert" aria-live="assertive" dismissible onClose={() => setMessage(null)}>
           {message.text}
+          {message.type === 'success' && odooToken && message.text === t('profile.odoo_token_generated') && (
+            <div className="mt-2">
+              <strong>{t('profile.odoo_token')}: </strong>{odooToken}
+            </div>
+          )}
         </Alert>
       )}
 
@@ -385,7 +392,9 @@ function Profile() {
               />
               <Form.Control.Feedback type="invalid">{salesforceErrors.address}</Form.Control.Feedback>
             </Form.Group>
-            <Button variant="primary" type="submit">{t('profile.submit')}</Button>
+            <Button variant="primary" type="submit" disabled={salesforceLoading}>
+              {salesforceLoading ? <Spinner animation="border" size="sm" /> : t('profile.submit')}
+            </Button>
           </Form>
         </Modal.Body>
       </Modal>
@@ -487,16 +496,17 @@ function Profile() {
                 <InputGroup>
                   <Form.Control
                     type="text"
-                    value={user?.odoo_token || ''}
+                    value={odooToken}
                     readOnly
                     aria-label={t('profile.odoo_token')}
                   />
                   <Button
                     variant={theme === 'dark' ? 'outline-light' : 'outline-secondary'}
                     onClick={handleGenerateOdooToken}
+                    disabled={odooLoading}
                     aria-label={t('profile.generate_token')}
                   >
-                    {t('profile.generate_token')}
+                    {odooLoading ? <Spinner animation="border" size="sm" /> : t('profile.generate_token')}
                   </Button>
                 </InputGroup>
               </Form.Group>
