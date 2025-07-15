@@ -2,7 +2,7 @@
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.addColumn('Users', 'odoo_token', {
+    await queryInterface.addColumn('users', 'odoo_token', {
       type: Sequelize.STRING,
       allowNull: true,
     });
