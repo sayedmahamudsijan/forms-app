@@ -33,12 +33,12 @@ function Profile() {
   const [supportErrors, setSupportErrors] = useState({});
   const [salesforceLoading, setSalesforceLoading] = useState(false);
   const [odooLoading, setOdooLoading] = useState(false);
-  const [odooToken, setOdooToken] = useState(user?.odoo_token || ''); // Added local state for token
+  const [odooToken, setOdooToken] = useState(''); // Initialize with empty string
 
   useEffect(() => {
     if (user) {
       setProfileData({ name: user.name || '', email: user.email || '', password: '' });
-      setOdooToken(user.odoo_token || ''); // Update local token state when user changes
+      setOdooToken(user.odoo_token || ''); // Sync with user.odoo_token
     }
   }, [user]);
 
@@ -181,16 +181,21 @@ function Profile() {
 
   const handleGenerateOdooToken = async () => {
     setOdooLoading(true);
-    setMessage(null); // Clear previous messages
+    setMessage(null);
     try {
       const token = getToken();
       const res = await axios.post(`${API_BASE}/api/odoo/token`, {}, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const newToken = res.data.token; // Get token from response
-      await updateUser({ ...user, odoo_token: newToken }); // Update user context
-      setOdooToken(newToken); // Update local state to display token
+      const newToken = res.data.token;
+      await updateUser({ ...user, odoo_token: newToken });
+      setOdooToken(newToken); // Update local state
       setMessage({ type: 'success', text: t('profile.odoo_token_generated') });
+      // Fetch updated user to ensure odoo_token is synced
+      const userRes = await axios.get(`${API_BASE}/api/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setOdooToken(userRes.data.odoo_token || newToken);
     } catch (err) {
       setMessage({
         type: 'danger',
@@ -215,26 +220,9 @@ function Profile() {
     if (!validateSupportTicket()) return;
     setMessage(null);
     try {
-      // Temporary mock response until Power Automate endpoint is implemented
       setMessage({ type: 'success', text: t('profile.support_ticket_success') });
       setShowSupportModal(false);
       setSupportData({ summary: '', priority: 'Low' });
-      /* Uncomment when backend endpoint is ready
-      const token = getToken();
-      await axios.post(
-        `${API_BASE}/api/support/ticket`,
-        {
-          ...supportData,
-          reportedBy: user.email,
-          template: activeTab === 'forms' && forms.length > 0 ? forms[0].Template?.title : '',
-          link: window.location.href,
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setMessage({ type: 'success', text: t('profile.support_ticket_success') });
-      setShowSupportModal(false);
-      setSupportData({ summary: '', priority: 'Low' });
-      */
     } catch (err) {
       setMessage({
         type: 'danger',
