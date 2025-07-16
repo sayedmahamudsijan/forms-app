@@ -1321,6 +1321,7 @@ const getResults = [
                 include: [
                   {
                     model: Form,
+                    as: 'Form', // Specify the alias as defined in FormAnswer model
                     where: { template_id: template.id },
                     attributes: [],
                   },
